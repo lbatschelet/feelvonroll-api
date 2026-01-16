@@ -44,25 +44,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true);
 
-    if (!$data || !isset($data['id'])) {
+    if (!$data) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid JSON']);
         exit;
     }
 
-    $id = intval($data['id']);
-    $approved = isset($data['approved']) ? intval((bool)$data['approved']) : null;
+    $action = $data['action'] ?? null;
+    $ids = isset($data['ids']) && is_array($data['ids']) ? $data['ids'] : null;
 
-    if ($approved === null) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Missing approved flag']);
+    if ($action === 'update_approval') {
+        $approved = isset($data['approved']) ? intval((bool)$data['approved']) : null;
+        if (!$ids || $approved === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing ids or approved flag']);
+            exit;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge([$approved], array_map('intval', $ids));
+        $stmt = $pdo->prepare("UPDATE pins SET approved = ? WHERE id IN ($placeholders)");
+        $stmt->execute($params);
+        echo json_encode(['updated' => $stmt->rowCount()]);
         exit;
     }
 
-    $stmt = $pdo->prepare('UPDATE pins SET approved = :approved WHERE id = :id');
-    $stmt->execute(['approved' => $approved, 'id' => $id]);
+    if ($action === 'delete') {
+        if (!$ids) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing ids']);
+            exit;
+        }
 
-    echo json_encode(['id' => $id, 'approved' => $approved]);
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_map('intval', $ids);
+        $stmt = $pdo->prepare("DELETE FROM pins WHERE id IN ($placeholders)");
+        $stmt->execute($params);
+        echo json_encode(['deleted' => $stmt->rowCount()]);
+        exit;
+    }
+
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid action']);
     exit;
 }
 
