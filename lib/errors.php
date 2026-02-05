@@ -9,7 +9,7 @@
  */
 class ApiError extends Exception
 {
-    private int $statusCode;
+    private $statusCode;
 
     /**
      * @param string $message
