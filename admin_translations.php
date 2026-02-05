@@ -6,17 +6,18 @@ header('Access-Control-Allow-Origin: *');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, X-Admin-Token');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
     exit;
 }
 
 $config = require __DIR__ . '/config.php';
-$adminToken = $config['admin_token'] ?? '';
-$requestToken = $_SERVER['HTTP_X_ADMIN_TOKEN'] ?? '';
-
-if (!$adminToken || !$requestToken || !hash_equals($adminToken, $requestToken)) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+require_once __DIR__ . '/helpers.php';
+$payload = require_admin_auth($config);
+$userId = isset($payload['user_id']) ? intval($payload['user_id']) : null;
+$role = $payload['role'] ?? '';
+if ($role === 'bootstrap') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Bootstrap token not allowed']);
     exit;
 }
 
@@ -54,6 +55,7 @@ if ($action === 'upsert') {
          ON DUPLICATE KEY UPDATE text = VALUES(text)'
     );
     $stmt->execute(['translation_key' => $key, 'lang' => $lang, 'text' => $text]);
+    log_admin_action($pdo, $userId, 'translation_upsert', 'translations', ['key' => $key, 'lang' => $lang]);
     echo json_encode(['ok' => true]);
     exit;
 }
@@ -66,6 +68,7 @@ if ($action === 'delete') {
     }
     $stmt = $pdo->prepare('DELETE FROM translations WHERE translation_key = :key AND lang = :lang');
     $stmt->execute(['key' => $key, 'lang' => $lang]);
+    log_admin_action($pdo, $userId, 'translation_delete', 'translations', ['key' => $key, 'lang' => $lang]);
     echo json_encode(['ok' => true]);
     exit;
 }

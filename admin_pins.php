@@ -6,19 +6,19 @@ header('Access-Control-Allow-Origin: *');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, X-Admin-Token');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
     exit;
 }
 
 require_once __DIR__ . '/helpers.php';
 
 $config = require __DIR__ . '/config.php';
-$adminToken = $config['admin_token'] ?? '';
-$requestToken = $_SERVER['HTTP_X_ADMIN_TOKEN'] ?? '';
-
-if (!$adminToken || !$requestToken || !hash_equals($adminToken, $requestToken)) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+$payload = require_admin_auth($config);
+$userId = isset($payload['user_id']) ? intval($payload['user_id']) : null;
+$role = $payload['role'] ?? '';
+if ($role === 'bootstrap') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Bootstrap token not allowed']);
     exit;
 }
 
@@ -63,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $params = array_merge([$approved], array_map('intval', $ids));
         $stmt = $pdo->prepare("UPDATE pins SET approved = ? WHERE id IN ($placeholders)");
         $stmt->execute($params);
+        log_admin_action($pdo, $userId, 'pin_update_approval', 'pins', ['ids' => $ids, 'approved' => $approved]);
         echo json_encode(['updated' => $stmt->rowCount()]);
         exit;
     }
@@ -78,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $params = array_map('intval', $ids);
         $stmt = $pdo->prepare("DELETE FROM pins WHERE id IN ($placeholders)");
         $stmt->execute($params);
+        log_admin_action($pdo, $userId, 'pin_delete', 'pins', ['ids' => $ids]);
         echo json_encode(['deleted' => $stmt->rowCount()]);
         exit;
     }

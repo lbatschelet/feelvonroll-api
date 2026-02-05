@@ -6,17 +6,18 @@ header('Access-Control-Allow-Origin: *');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, X-Admin-Token');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
     exit;
 }
 
 $config = require __DIR__ . '/config.php';
-$adminToken = $config['admin_token'] ?? '';
-$requestToken = $_SERVER['HTTP_X_ADMIN_TOKEN'] ?? '';
-
-if (!$adminToken || !$requestToken || !hash_equals($adminToken, $requestToken)) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+require_once __DIR__ . '/helpers.php';
+$payload = require_admin_auth($config);
+$userId = isset($payload['user_id']) ? intval($payload['user_id']) : null;
+$role = $payload['role'] ?? '';
+if ($role === 'bootstrap') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Bootstrap token not allowed']);
     exit;
 }
 
@@ -75,6 +76,10 @@ if ($action === 'upsert') {
         'sort' => $sort,
         'is_active' => $isActive,
     ]);
+    log_admin_action($pdo, $userId, 'option_upsert', 'question_options', [
+        'question_key' => $questionKey,
+        'option_key' => $optionKey,
+    ]);
     echo json_encode(['ok' => true]);
     exit;
 }
@@ -89,6 +94,10 @@ if ($action === 'delete') {
         'DELETE FROM question_options WHERE question_key = :question_key AND option_key = :option_key'
     );
     $stmt->execute(['question_key' => $questionKey, 'option_key' => $optionKey]);
+    log_admin_action($pdo, $userId, 'option_delete', 'question_options', [
+        'question_key' => $questionKey,
+        'option_key' => $optionKey,
+    ]);
     echo json_encode(['ok' => true]);
     exit;
 }

@@ -6,17 +6,18 @@ header('Access-Control-Allow-Origin: *');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, X-Admin-Token');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
     exit;
 }
 
 $config = require __DIR__ . '/config.php';
-$adminToken = $config['admin_token'] ?? '';
-$requestToken = $_SERVER['HTTP_X_ADMIN_TOKEN'] ?? '';
-
-if (!$adminToken || !$requestToken || !hash_equals($adminToken, $requestToken)) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+require_once __DIR__ . '/helpers.php';
+$payload = require_admin_auth($config);
+$userId = isset($payload['user_id']) ? intval($payload['user_id']) : null;
+$role = $payload['role'] ?? '';
+if ($role === 'bootstrap') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Bootstrap token not allowed']);
     exit;
 }
 
@@ -60,6 +61,7 @@ if ($action === 'upsert') {
          ON DUPLICATE KEY UPDATE label = VALUES(label), enabled = VALUES(enabled)'
     );
     $stmt->execute(['lang' => $lang, 'label' => $label, 'enabled' => $enabled]);
+    log_admin_action($pdo, $userId, 'language_upsert', 'languages', ['lang' => $lang]);
     echo json_encode(['ok' => true]);
     exit;
 }
@@ -73,6 +75,7 @@ if ($action === 'toggle') {
     }
     $stmt = $pdo->prepare('UPDATE languages SET enabled = :enabled WHERE lang = :lang');
     $stmt->execute(['lang' => $lang, 'enabled' => $enabled]);
+    log_admin_action($pdo, $userId, 'language_toggle', 'languages', ['lang' => $lang, 'enabled' => $enabled]);
     echo json_encode(['ok' => true]);
     exit;
 }
@@ -85,6 +88,7 @@ if ($action === 'delete') {
     }
     $stmt = $pdo->prepare('DELETE FROM languages WHERE lang = :lang');
     $stmt->execute(['lang' => $lang]);
+    log_admin_action($pdo, $userId, 'language_delete', 'languages', ['lang' => $lang]);
     echo json_encode(['ok' => true]);
     exit;
 }
