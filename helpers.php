@@ -9,7 +9,7 @@ function normalize_pin_row(array $row): array
     $row['position_x'] = floatval($row['position_x']);
     $row['position_y'] = floatval($row['position_y']);
     $row['position_z'] = floatval($row['position_z']);
-    $row['wellbeing'] = intval($row['wellbeing']);
+    $row['wellbeing'] = floatval($row['wellbeing']);
     $row['approved'] = intval($row['approved']);
     $row['group_key'] = $row['group_key'] ?? null;
     return $row;

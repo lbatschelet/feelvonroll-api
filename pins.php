@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $z = isset($data['z']) ? floatval($data['z']) : null;
 
     $answers = isset($data['answers']) && is_array($data['answers']) ? $data['answers'] : $data;
-    $wellbeing = isset($answers['wellbeing']) ? intval($answers['wellbeing']) : null;
+    $wellbeing = isset($answers['wellbeing']) ? normalize_percent($answers['wellbeing']) : null;
     $reasons = isset($answers['reasons']) && is_array($answers['reasons']) ? $answers['reasons'] : [];
     $note = isset($answers['note']) ? trim($answers['note']) : '';
     $groupKey = isset($answers['group']) ? $answers['group'] : null;
@@ -149,3 +149,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 http_response_code(405);
 echo json_encode(['error' => 'Method not allowed']);
+
+function normalize_percent($value): ?float
+{
+    if ($value === null || $value === '') {
+        return null;
+    }
+    if (!is_numeric($value)) {
+        return null;
+    }
+    $numeric = floatval($value);
+    $clamped = min(max($numeric, 0), 100);
+    return round($clamped, 2);
+}
