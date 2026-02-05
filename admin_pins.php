@@ -10,6 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+require_once __DIR__ . '/helpers.php';
+
 $config = require __DIR__ . '/config.php';
 $adminToken = $config['admin_token'] ?? '';
 $requestToken = $_SERVER['HTTP_X_ADMIN_TOKEN'] ?? '';
@@ -26,23 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->query(
         "SELECT pins.*, GROUP_CONCAT(pin_reasons.reason_key) AS reason_keys
          FROM pins
-         LEFT JOIN pin_reasons ON pin_reasons.pin_id = pins.id
+         LEFT JOIN pin_reasons ON pin_reasons.pin_id = pins.id AND pin_reasons.question_key = 'reasons'
          GROUP BY pins.id
          ORDER BY pins.created_at DESC"
     );
     $rows = $stmt->fetchAll();
-    $result = array_map(function ($row) {
-        $row['reasons'] = $row['reason_keys'] ? explode(',', $row['reason_keys']) : [];
-        unset($row['reason_keys']);
-        $row['id'] = intval($row['id']);
-        $row['floor_index'] = intval($row['floor_index']);
-        $row['position_x'] = floatval($row['position_x']);
-        $row['position_y'] = floatval($row['position_y']);
-        $row['position_z'] = floatval($row['position_z']);
-        $row['wellbeing'] = intval($row['wellbeing']);
-        $row['approved'] = intval($row['approved']);
-        return $row;
-    }, $rows);
+    $result = array_map('normalize_pin_row', $rows);
     echo json_encode($result);
     exit;
 }
