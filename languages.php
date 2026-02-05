@@ -1,4 +1,7 @@
 <?php
+/**
+ * Public languages endpoint for enabled languages.
+ */
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -10,27 +13,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode(['error' => 'Method not allowed']);
-    exit;
+require_once __DIR__ . '/lib/errors.php';
+require_once __DIR__ . '/services/public_languages_service.php';
+
+try {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        throw new ApiError('Method not allowed', 405);
+    }
+
+    $pdo = require __DIR__ . '/db.php';
+
+    echo json_encode(public_languages_list($pdo));
+} catch (Throwable $error) {
+    handle_api_exception($error);
 }
-
-$pdo = require __DIR__ . '/db.php';
-
-$stmt = $pdo->query(
-    'SELECT lang, label, enabled
-     FROM languages
-     WHERE enabled = 1
-     ORDER BY label ASC'
-);
-
-$rows = $stmt->fetchAll();
-$result = array_map(function ($row) {
-    return [
-        'lang' => $row['lang'],
-        'label' => $row['label'],
-    ];
-}, $rows);
-
-echo json_encode($result);

@@ -1,4 +1,7 @@
 <?php
+/**
+ * Public translations endpoint for translation lookups.
+ */
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -10,38 +13,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode(['error' => 'Method not allowed']);
-    exit;
+require_once __DIR__ . '/lib/errors.php';
+require_once __DIR__ . '/services/public_translations_service.php';
+
+try {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        throw new ApiError('Method not allowed', 405);
+    }
+
+    $lang = isset($_GET['lang']) ? trim($_GET['lang']) : 'de';
+    $prefix = isset($_GET['prefix']) ? trim($_GET['prefix']) : null;
+
+    if (!$lang || !preg_match('/^[a-z]{2}(-[a-z]{2})?$/i', $lang)) {
+        throw new ApiError('Invalid lang', 400);
+    }
+
+    $pdo = require __DIR__ . '/db.php';
+
+    echo json_encode(public_translations_list($pdo, $lang, $prefix));
+} catch (Throwable $error) {
+    handle_api_exception($error);
 }
-
-$lang = isset($_GET['lang']) ? trim($_GET['lang']) : 'de';
-$prefix = isset($_GET['prefix']) ? trim($_GET['prefix']) : null;
-
-if (!$lang || !preg_match('/^[a-z]{2}(-[a-z]{2})?$/i', $lang)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid lang']);
-    exit;
-}
-
-$pdo = require __DIR__ . '/db.php';
-
-$sql = 'SELECT translation_key, text FROM translations WHERE lang = :lang';
-$params = ['lang' => $lang];
-
-if ($prefix) {
-    $sql .= ' AND translation_key LIKE :prefix';
-    $params['prefix'] = $prefix . '%';
-}
-
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$rows = $stmt->fetchAll();
-
-$result = [];
-foreach ($rows as $row) {
-    $result[$row['translation_key']] = $row['text'];
-}
-
-echo json_encode($result);

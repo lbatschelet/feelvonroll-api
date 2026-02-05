@@ -29,7 +29,6 @@ Existing databases should apply the SQL in `migrations/`.
 ## Tests
 
 ```bash
-composer install
 composer test
 ```
 

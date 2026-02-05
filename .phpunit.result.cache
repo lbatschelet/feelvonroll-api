@@ -1,1 +1,1 @@
-{"version":2,"defects":[],"times":{"HelpersTest::testNormalizePinRowWithReasons":0.006,"HelpersTest::testNormalizePinRowWithoutReasons":0}}
+{"version":2,"defects":{"HelpersTest::testNormalizePinRowWithReasons":7},"times":{"HelpersTest::testNormalizePinRowWithReasons":0.005,"HelpersTest::testNormalizePinRowWithoutReasons":0,"PublicPinsServiceTest::testNormalizePercentClampsAndRounds":0,"PublicTranslationsServiceTest::testPublicTranslationsListFiltersPrefix":0.002,"JsonErrorTest::testJsonErrorThrowsApiError":0.001}}

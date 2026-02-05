@@ -1,9 +1,15 @@
 <?php
+/**
+ * Tests for helper functions.
+ */
 
 use PHPUnit\Framework\TestCase;
 
 final class HelpersTest extends TestCase
 {
+    /**
+     * @return void
+     */
     public function testNormalizePinRowWithReasons(): void
     {
         $row = [
@@ -25,13 +31,16 @@ final class HelpersTest extends TestCase
         $this->assertSame(1.25, $result['position_x']);
         $this->assertSame(2.5, $result['position_y']);
         $this->assertSame(3.75, $result['position_z']);
-        $this->assertSame(4, $result['wellbeing']);
+        $this->assertSame(4.0, $result['wellbeing']);
         $this->assertSame(1, $result['approved']);
         $this->assertSame(['noise', 'light'], $result['reasons']);
         $this->assertSame('staff', $result['group_key']);
         $this->assertArrayNotHasKey('reason_keys', $result);
     }
 
+    /**
+     * @return void
+     */
     public function testNormalizePinRowWithoutReasons(): void
     {
         $row = [

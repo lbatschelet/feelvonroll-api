@@ -1,4 +1,7 @@
 <?php
+/**
+ * Database connection bootstrap for the API.
+ */
 
 $config = require __DIR__ . '/config.php';
 
