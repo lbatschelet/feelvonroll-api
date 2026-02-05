@@ -50,6 +50,7 @@ $action = $data['action'] ?? '';
 if ($action === 'create') {
     $email = isset($data['email']) ? trim($data['email']) : '';
     $name = isset($data['name']) ? trim($data['name']) : '';
+    $password = isset($data['password']) ? $data['password'] : '';
     if (!$email || !$name) {
         http_response_code(400);
         echo json_encode(['error' => 'Missing name or email']);
@@ -68,17 +69,33 @@ if ($action === 'create') {
             exit;
         }
     }
-    $resetToken = base64url_encode(random_bytes(32));
-    $resetHash = hash('sha256', $resetToken);
-    $expires = date('Y-m-d H:i:s', time() + 24 * 3600);
+    $resetToken = null;
+    $expires = null;
+    $hash = null;
+    $mustSet = 1;
+    if ($password) {
+        if (strlen($password) < 8) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password too short']);
+            exit;
+        }
+        $hash = password_hash($password, PASSWORD_DEFAULT);
+        $mustSet = 0;
+    } else {
+        $resetToken = base64url_encode(random_bytes(32));
+        $resetHash = hash('sha256', $resetToken);
+        $expires = date('Y-m-d H:i:s', time() + 24 * 3600);
+    }
     $stmt = $pdo->prepare(
         'INSERT INTO admin_users (email, name, password_hash, must_set_password, reset_token_hash, reset_token_expires)
-         VALUES (:email, :name, NULL, 1, :hash, :expires)'
+         VALUES (:email, :name, :password_hash, :must_set, :hash, :expires)'
     );
     $stmt->execute([
         'email' => $email,
         'name' => $name,
-        'hash' => $resetHash,
+        'password_hash' => $hash,
+        'must_set' => $mustSet,
+        'hash' => $resetToken ? $resetHash : null,
         'expires' => $expires,
     ]);
     $newId = intval($pdo->lastInsertId());
@@ -86,7 +103,11 @@ if ($action === 'create') {
         'id' => $newId,
         'email' => $email,
     ]);
-    echo json_encode(['id' => $newId, 'reset_token' => $resetToken, 'reset_expires' => $expires]);
+    echo json_encode([
+        'id' => $newId,
+        'reset_token' => $resetToken,
+        'reset_expires' => $expires,
+    ]);
     exit;
 }
 
