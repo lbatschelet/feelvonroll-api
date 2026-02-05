@@ -48,7 +48,7 @@ INSERT IGNORE INTO languages (lang, label, enabled) VALUES
 
 -- Seed questions
 INSERT IGNORE INTO questions (question_key, type, required, sort, is_active, config) VALUES
-  ('wellbeing', 'slider', 1, 10, 1, JSON_OBJECT('min', 1, 'max', 10, 'step', 1, 'default', 6)),
+  ('wellbeing', 'slider', 1, 10, 1, JSON_OBJECT('min', 1, 'max', 10, 'step', 1, 'default', 5)),
   ('reasons', 'multi', 0, 20, 1, JSON_OBJECT('allow_multiple', 1)),
   ('group', 'multi', 0, 30, 1, JSON_OBJECT('allow_multiple', 0)),
   ('note', 'text', 0, 40, 1, JSON_OBJECT('rows', 3));
