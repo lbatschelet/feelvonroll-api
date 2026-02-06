@@ -78,13 +78,23 @@ function admin_auth_login(PDO $pdo, array $config, string $email, string $passwo
         [
             'user_id' => intval($user['id']),
             'email' => $user['email'],
+            'is_admin' => intval($user['is_admin'] ?? 0),
             'tv' => intval($user['token_version']),
         ],
         $secret
     );
     $stmt = $pdo->prepare('UPDATE admin_users SET last_login_at = NOW() WHERE id = :id');
     $stmt->execute(['id' => intval($user['id'])]);
-    return ['token' => $token, 'user' => ['id' => intval($user['id']), 'email' => $user['email'], 'name' => $user['name']]];
+    return [
+        'token' => $token,
+        'user' => [
+            'id' => intval($user['id']),
+            'email' => $user['email'],
+            'first_name' => $user['first_name'] ?? '',
+            'last_name' => $user['last_name'] ?? '',
+            'is_admin' => intval($user['is_admin'] ?? 0),
+        ],
+    ];
 }
 
 /**
@@ -148,7 +158,7 @@ function admin_auth_refresh(PDO $pdo, array $config, array $payload): array
     if (!isset($payload['user_id'])) {
         json_error('Invalid user', 401);
     }
-    $stmt = $pdo->prepare('SELECT id, email, token_version FROM admin_users WHERE id = :id');
+    $stmt = $pdo->prepare('SELECT id, email, is_admin, token_version FROM admin_users WHERE id = :id');
     $stmt->execute(['id' => intval($payload['user_id'])]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$user) {
@@ -158,6 +168,7 @@ function admin_auth_refresh(PDO $pdo, array $config, array $payload): array
         [
             'user_id' => intval($user['id']),
             'email' => $user['email'] ?? '',
+            'is_admin' => intval($user['is_admin'] ?? 0),
             'tv' => intval($user['token_version']),
         ],
         $secret

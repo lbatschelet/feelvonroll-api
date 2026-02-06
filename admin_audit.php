@@ -12,8 +12,17 @@ $pdo = require __DIR__ . '/db.php';
 try {
     $payload = require_admin_auth($config, $pdo);
     $role = $payload['role'] ?? '';
+    $isAdmin = isset($payload['is_admin']) ? intval((bool)$payload['is_admin']) : 0;
+    if (!$isAdmin && isset($payload['user_id'])) {
+        $adminCheck = $pdo->prepare('SELECT is_admin FROM admin_users WHERE id = :id');
+        $adminCheck->execute(['id' => intval($payload['user_id'])]);
+        $isAdmin = intval($adminCheck->fetchColumn()) === 1 ? 1 : 0;
+    }
     if ($role === 'bootstrap') {
         json_error('Bootstrap token not allowed', 403);
+    }
+    if (!$isAdmin) {
+        json_error('Forbidden', 403);
     }
 
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {

@@ -7,4 +7,5 @@ return [
     'db_pass' => 'your_db_password',
     'admin_token' => 'set_a_long_random_token',
     'jwt_secret' => 'set_a_long_random_secret',
+    'api_debug' => false,
 ];

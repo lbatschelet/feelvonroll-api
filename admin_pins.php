@@ -14,6 +14,24 @@ try {
     $userId = isset($payload['user_id']) ? intval($payload['user_id']) : null;
 
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $action = isset($_GET['action']) ? trim($_GET['action']) : '';
+        if ($action === 'export_csv') {
+            $rows = admin_pins_export_rows($pdo);
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="pins.csv"');
+            $output = fopen('php://output', 'w');
+            if (!$rows) {
+                fputcsv($output, []);
+                fclose($output);
+                exit;
+            }
+            fputcsv($output, array_keys($rows[0]));
+            foreach ($rows as $row) {
+                fputcsv($output, $row);
+            }
+            fclose($output);
+            exit;
+        }
         json_response(admin_pins_list($pdo));
     }
 

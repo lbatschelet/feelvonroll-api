@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin pins service for listing and approval updates.
- * Exports: admin_pins_list, admin_pins_update_approval, admin_pins_delete.
+ * Exports: admin_pins_list, admin_pins_export_rows, admin_pins_update_approval, admin_pins_delete.
  */
 
 /**
@@ -21,6 +21,24 @@ function admin_pins_list(PDO $pdo): array
     );
     $rows = $stmt->fetchAll();
     return array_map('normalize_pin_row', $rows);
+}
+
+/**
+ * Returns raw pin rows for CSV export.
+ *
+ * @param PDO $pdo
+ * @return array
+ */
+function admin_pins_export_rows(PDO $pdo): array
+{
+    $stmt = $pdo->query(
+        "SELECT pins.*, GROUP_CONCAT(pin_reasons.reason_key) AS reason_keys
+         FROM pins
+         LEFT JOIN pin_reasons ON pin_reasons.pin_id = pins.id AND pin_reasons.question_key = 'reasons'
+         GROUP BY pins.id
+         ORDER BY pins.created_at DESC"
+    );
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 /**
