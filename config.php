@@ -13,6 +13,7 @@ if (!$config) {
         'db_user' => 'REDACTED',
         'db_pass' => 'REDACTED',
         'admin_token' => 'REDACTED',
+        'api_debug' => true,
     ];
 }
 
