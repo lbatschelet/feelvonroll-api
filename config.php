@@ -23,6 +23,7 @@ $envMap = [
     'db_pass' => 'DB_PASS',
     'admin_token' => 'ADMIN_TOKEN',
     'jwt_secret' => 'JWT_SECRET',
+    'api_debug' => 'API_DEBUG',
 ];
 
 foreach ($envMap as $key => $envKey) {
@@ -30,6 +31,11 @@ foreach ($envMap as $key => $envKey) {
     if ($value !== false && $value !== '') {
         $config[$key] = $value;
     }
+}
+
+if (!defined('API_DEBUG')) {
+    $flag = $config['api_debug'] ?? false;
+    define('API_DEBUG', $flag === true || $flag === 1 || $flag === '1');
 }
 
 return $config;
