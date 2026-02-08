@@ -38,7 +38,22 @@ try {
         if (!$lang || $enabled === null) {
             json_error('Missing lang or enabled flag', 400);
         }
+        // Force-enable bypasses the completeness check.
+        $force = !empty($data['force']);
+        if ($enabled && $force) {
+            $stmt = $pdo->prepare('UPDATE languages SET enabled = 1 WHERE lang = :lang');
+            $stmt->execute(['lang' => $lang]);
+            log_admin_action($pdo, $userId, 'language_toggle', 'languages', ['lang' => $lang, 'enabled' => 1, 'forced' => true]);
+            json_response(['ok' => true]);
+        }
         json_response(admin_languages_toggle($pdo, $userId, $lang, $enabled));
+    }
+
+    if ($action === 'check') {
+        if (!$lang) {
+            json_error('Missing lang', 400);
+        }
+        json_response(admin_languages_check($pdo, $lang));
     }
 
     if ($action === 'delete') {
