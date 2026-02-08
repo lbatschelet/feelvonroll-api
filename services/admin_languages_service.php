@@ -23,6 +23,7 @@ function admin_languages_list(PDO $pdo): array
  */
 function admin_languages_upsert(PDO $pdo, ?int $userId, string $lang, string $label, ?int $enabled): array
 {
+    $effectiveEnabled = $enabled ?? 0;
     $stmt = $pdo->prepare(
         'INSERT INTO languages (lang, label, enabled)
          VALUES (:lang, :label, :enabled)
@@ -31,10 +32,22 @@ function admin_languages_upsert(PDO $pdo, ?int $userId, string $lang, string $la
     $stmt->execute([
         'lang' => $lang,
         'label' => $label,
-        'enabled' => $enabled ?? 0,
+        'enabled' => $effectiveEnabled,
     ]);
     log_admin_action($pdo, $userId, 'language_upsert', 'languages', ['lang' => $lang, 'label' => $label]);
-    return ['ok' => true];
+
+    // Read back what the DB actually stored.
+    $verify = $pdo->prepare('SELECT lang, label, enabled FROM languages WHERE lang = :lang');
+    $verify->execute(['lang' => $lang]);
+    $row = $verify->fetch(PDO::FETCH_ASSOC);
+
+    return [
+        'ok' => true,
+        '_debug' => [
+            'requested_enabled' => $effectiveEnabled,
+            'db_row' => $row,
+        ],
+    ];
 }
 
 /**
@@ -49,7 +62,13 @@ function admin_languages_toggle(PDO $pdo, ?int $userId, string $lang, int $enabl
         $stmt = $pdo->prepare('UPDATE languages SET enabled = :enabled WHERE lang = :lang');
         $stmt->execute(['lang' => $lang, 'enabled' => 0]);
         log_admin_action($pdo, $userId, 'language_toggle', 'languages', ['lang' => $lang, 'enabled' => 0]);
-        return ['ok' => true];
+
+        // Read back to verify.
+        $verify = $pdo->prepare('SELECT lang, label, enabled FROM languages WHERE lang = :lang');
+        $verify->execute(['lang' => $lang]);
+        $row = $verify->fetch(PDO::FETCH_ASSOC);
+
+        return ['ok' => true, '_debug' => ['action' => 'disable', 'db_row' => $row]];
     }
 
     // Enabling: run completeness check first.
