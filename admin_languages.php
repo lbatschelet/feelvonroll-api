@@ -26,7 +26,7 @@ try {
 
     if ($action === 'upsert') {
         $label = isset($data['label']) ? trim($data['label']) : '';
-        $enabled = isset($data['enabled']) ? intval((bool)$data['enabled']) : 1;
+        $enabled = isset($data['enabled']) ? intval((bool)$data['enabled']) : 0;
         if (!$lang || !$label) {
             json_error('Missing lang or label', 400);
         }
