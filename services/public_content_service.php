@@ -15,11 +15,6 @@
  */
 function public_content_get(PDO $pdo, string $pageKey, string $lang): array
 {
-    // Debug: list all rows for this page_key to verify data is accessible
-    $debug = $pdo->prepare('SELECT page_key, lang, LENGTH(body) as body_len, updated_at FROM content_pages WHERE page_key = :key');
-    $debug->execute(['key' => $pageKey]);
-    $allRows = $debug->fetchAll(PDO::FETCH_ASSOC);
-
     $stmt = $pdo->prepare(
         'SELECT body, updated_at FROM content_pages WHERE page_key = :key AND lang = :lang LIMIT 1'
     );
@@ -39,6 +34,5 @@ function public_content_get(PDO $pdo, string $pageKey, string $lang): array
         }
     }
 
-    // Return debug info when nothing found
-    return ['body' => '', 'updated_at' => null, '_debug_rows' => $allRows, '_query_key' => $pageKey, '_query_lang' => $lang];
+    return ['body' => '', 'updated_at' => null];
 }

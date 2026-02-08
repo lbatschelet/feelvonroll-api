@@ -21,19 +21,19 @@ try {
         throw new ApiError('Method not allowed', 405);
     }
 
-    $key = isset($_GET['key']) ? trim($_GET['key']) : '';
+    $pdo = require __DIR__ . '/db.php';
+
+    $pageKey = isset($_GET['key']) ? trim($_GET['key']) : '';
     $lang = isset($_GET['lang']) ? trim($_GET['lang']) : 'de';
 
-    if (!$key || !preg_match('/^[a-z0-9_-]+$/i', $key)) {
+    if (!$pageKey || !preg_match('/^[a-z0-9_-]+$/i', $pageKey)) {
         throw new ApiError('Invalid or missing key', 400);
     }
     if (!$lang || !preg_match('/^[a-z]{2}(-[a-z]{2})?$/i', $lang)) {
         throw new ApiError('Invalid lang', 400);
     }
 
-    $pdo = require __DIR__ . '/db.php';
-
-    echo json_encode(public_content_get($pdo, $key, $lang));
+    echo json_encode(public_content_get($pdo, $pageKey, $lang));
 } catch (Throwable $error) {
     handle_api_exception($error);
 }
