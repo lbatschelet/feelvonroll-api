@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS content_pages (
+  page_key   VARCHAR(64)  NOT NULL,
+  lang       VARCHAR(8)   NOT NULL,
+  body       TEXT         NOT NULL,
+  updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (page_key, lang)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
