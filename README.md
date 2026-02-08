@@ -3,7 +3,7 @@
 PHP REST API for the [feelvonRoll](https://github.com/lbatschelet/feelvonroll) project. Serves both public endpoints (for the webapp) and authenticated admin endpoints (for the admin panel).
 
 > [!NOTE]
-> Part of the feelvonRoll project. See the [main repository](https://github.com/lbatschelet/feelvonroll) for full documentation.
+> Part of the [feelvonRoll](https://github.com/lbatschelet/feelvonroll) project, developed for [PHBern](https://www.phbern.ch) within [RealTransform](https://sustainability.uzh.ch/de/forschung-lehre/forschung/realtransform.html). See the [main repository](https://github.com/lbatschelet/feelvonroll) for full documentation and project context.
 
 ## Requirements
 
@@ -86,4 +86,4 @@ composer test
 
 ## License
 
-[AGPL-3.0](../LICENSE)
+[AGPL-3.0](../LICENSE) -- [Lukas Batschelet](https://lukasbatschelet.ch) for [PHBern](https://www.phbern.ch)
