@@ -2,6 +2,7 @@
 
 PHP REST API for the [feelvonRoll](https://github.com/lbatschelet/feelvonroll) project. Serves both public endpoints (for the webapp) and authenticated admin endpoints (for the admin panel).
 
+> [!NOTE]
 > Part of the feelvonRoll project. See the [main repository](https://github.com/lbatschelet/feelvonroll) for full documentation.
 
 ## Requirements
