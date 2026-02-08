@@ -16,6 +16,7 @@ function admin_handle_options(string $methods, string $headers = 'Content-Type, 
 {
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Expose-Headers: Content-Disposition');
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         header('Access-Control-Allow-Origin: *');
         header("Access-Control-Allow-Methods: $methods");

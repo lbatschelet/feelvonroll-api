@@ -1,30 +1,81 @@
 # feelvonroll-api
 
-PHP + MySQL API for pins.
+PHP REST API for the [feelvonRoll](https://github.com/lbatschelet/feelvonroll) project. Serves both public endpoints (for the webapp) and authenticated admin endpoints (for the admin panel).
 
-## API Docs
+> Part of the feelvonRoll project. See the [main repository](https://github.com/lbatschelet/feelvonroll) for full documentation.
 
-See `API.md` for full endpoint documentation and examples.
+## Requirements
+
+- PHP >= 8.1
+- MySQL / MariaDB
 
 ## Setup
 
-1) Create the table
-   - Run `schema.sql` in your MySQL database.
+1. **Create the database schema**
 
-2) Configure credentials
-   - Copy `config.example.php` to `config.local.php`
-   - Fill in `db_host`, `db_name`, `db_user`, `db_pass`
-   - Set `admin_token` to a long random string
+   ```bash
+   mysql -u root your_db_name < schema.sql
+   ```
 
-3) Deploy
-   - Upload this folder to your hosting (e.g. `/api`)
-   - Endpoint: `https://your-domain.tld/api/pins.php`
+2. **Apply migrations** (in order)
 
-## Migrations
+   ```bash
+   mysql -u root your_db_name < migrations/001_questionnaire.sql
+   mysql -u root your_db_name < migrations/002_slider_percent.sql
+   mysql -u root your_db_name < migrations/003_admin_users.sql
+   mysql -u root your_db_name < migrations/004_admin_token_version.sql
+   mysql -u root your_db_name < migrations/005_admin_roles_profile.sql
+   ```
 
-Existing databases should apply the SQL in `migrations/`.
+3. **Configure credentials**
 
-- `migrations/001_questionnaire.sql` adds questions/options/translations and group support.
+   ```bash
+   cp config.example.php config.local.php
+   ```
+
+   Edit `config.local.php` with your database credentials, a `jwt_secret`, and an `admin_token` (used for the initial bootstrap).
+
+4. **Run locally** (development)
+
+   ```bash
+   php -S localhost:8080
+   ```
+
+## API Documentation
+
+See [API.md](API.md) for the full endpoint reference with request/response examples.
+
+### Public Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/pins.php` | List approved pins (optional `?floor=N`) |
+| `POST` | `/pins.php` | Create a pin |
+| `GET` | `/questions.php` | Questionnaire config (optional `?lang=de`) |
+| `GET` | `/languages.php` | Enabled languages |
+| `GET` | `/translations.php` | Translations by language and prefix |
+
+### Admin Endpoints (JWT required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET/POST` | `/admin_auth.php` | Login, bootstrap, password reset, token refresh |
+| `GET/POST` | `/admin_pins.php` | List all pins, update approval, delete, CSV export |
+| `GET/POST` | `/admin_questions.php` | List, upsert, delete questions |
+| `GET/POST` | `/admin_options.php` | List, upsert, delete question options |
+| `GET/POST` | `/admin_languages.php` | List, upsert, toggle, delete languages |
+| `POST` | `/admin_translations.php` | Upsert, delete translations |
+| `GET/POST` | `/admin_users.php` | List, create, update, delete users, password reset |
+| `GET` | `/admin_audit.php` | Audit log with pagination |
+
+## Authentication
+
+Admin endpoints use JWT Bearer tokens. The authentication flow:
+
+1. **Bootstrap**: On first run, use the `admin_token` from config to create the initial admin user
+2. **Login**: `POST /admin_auth.php` with `action: "login"` returns a JWT
+3. **Requests**: Include `Authorization: Bearer <token>` header
+4. **Refresh**: Tokens can be refreshed via `action: "refresh"`
 
 ## Tests
 
@@ -32,21 +83,6 @@ Existing databases should apply the SQL in `migrations/`.
 composer test
 ```
 
-## Endpoints
+## License
 
-- `GET /pins.php` → list all pins
-- `GET /pins.php?floor=0` → list pins per floor
-- `POST /pins.php` → create pin
-- `GET /questions.php?lang=de` → questionnaire config
-- `GET /languages.php` → enabled languages
-
-Admin (requires `X-Admin-Token` header):
-- `GET /admin_pins.php` → list all pins
-- `POST /admin_pins.php` → update `approved`
-- `GET /admin_questions.php` → list questions
-- `POST /admin_questions.php` → upsert/delete questions
-- `GET /admin_options.php` → list question options
-- `POST /admin_options.php` → upsert/delete options
-- `GET /admin_languages.php` → list languages
-- `POST /admin_languages.php` → upsert/delete/toggle languages
-- `POST /admin_translations.php` → upsert/delete translations
+[AGPL-3.0](../LICENSE)

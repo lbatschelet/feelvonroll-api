@@ -38,7 +38,18 @@ function admin_pins_export_rows(PDO $pdo): array
          GROUP BY pins.id
          ORDER BY pins.created_at DESC"
     );
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Map numeric approved value to human-readable status label
+    foreach ($rows as &$row) {
+        if (array_key_exists('approved', $row)) {
+            $val = intval($row['approved']);
+            $row['status'] = $val === 1 ? 'approved' : ($val === -1 ? 'rejected' : 'pending');
+        }
+    }
+    unset($row);
+
+    return $rows;
 }
 
 /**

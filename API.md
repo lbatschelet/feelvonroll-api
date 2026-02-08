@@ -112,7 +112,48 @@ Response:
 ```
 
 ## Admin endpoints
-All admin requests require `X-Admin-Token` header.
+
+All admin requests require a JWT Bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer <token>
+```
+
+### `GET /admin_auth.php`
+Check auth/bootstrap status.
+
+Response:
+```json
+{ "bootstrap_required": false }
+```
+
+### `POST /admin_auth.php`
+Authentication actions.
+
+**Login:**
+```json
+{ "action": "login", "email": "admin@example.com", "password": "secret" }
+```
+Response:
+```json
+{ "token": "eyJ...", "user": { "id": 1, "email": "admin@example.com", "first_name": "Admin", "is_admin": true } }
+```
+
+**Bootstrap login** (first-time setup with admin_token from config):
+```json
+{ "action": "bootstrap_login", "admin_token": "your_configured_token" }
+```
+
+**Set password** (via reset token):
+```json
+{ "action": "set_password", "reset_token": "abc123", "password": "new_password" }
+```
+
+**Refresh token:**
+```json
+{ "action": "refresh" }
+```
+(Requires existing valid JWT in Authorization header.)
 
 ### `GET /admin_pins.php`
 List all pins (including pending/rejected).
@@ -202,3 +243,63 @@ Body examples:
 ```json
 { "action": "delete", "translation_key": "questions.note.label", "lang": "de" }
 ```
+
+### `GET /admin_users.php`
+List all admin users. Requires admin role.
+
+Response:
+```json
+[
+  { "id": 1, "email": "admin@example.com", "first_name": "Admin", "last_name": "User", "is_admin": true }
+]
+```
+
+### `POST /admin_users.php`
+Manage admin users. Requires admin role.
+
+**Create user:**
+```json
+{ "action": "create", "email": "new@example.com", "first_name": "New", "last_name": "User", "is_admin": false }
+```
+Response includes a `reset_link` for setting the initial password.
+
+**Update user:**
+```json
+{ "action": "update", "user_id": 2, "first_name": "Updated", "is_admin": true }
+```
+
+**Delete user:**
+```json
+{ "action": "delete", "user_id": 2 }
+```
+
+**Reset password:**
+```json
+{ "action": "reset_password", "user_id": 2 }
+```
+Response includes a new `reset_link`.
+
+**Update own profile** (any authenticated user):
+```json
+{ "action": "update_self", "first_name": "New Name", "last_name": "New Last" }
+```
+
+### `GET /admin_audit.php`
+Fetch audit log entries with pagination.
+
+Query params:
+- `limit` (optional, default 50)
+- `offset` (optional, default 0)
+
+Response:
+```json
+{
+  "items": [
+    { "id": 1, "user_id": 1, "action": "login", "details": "{}", "created_at": "2026-01-01 12:00:00" }
+  ],
+  "total": 42
+}
+```
+
+### `GET /admin_pins.php?action=export_csv`
+Export all pins as CSV file. Returns `Content-Type: text/csv` with a timestamped filename.

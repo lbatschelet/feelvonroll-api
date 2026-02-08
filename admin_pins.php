@@ -17,8 +17,9 @@ try {
         $action = isset($_GET['action']) ? trim($_GET['action']) : '';
         if ($action === 'export_csv') {
             $rows = admin_pins_export_rows($pdo);
+            $timestamp = date('Y-m-d_His');
             header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="pins.csv"');
+            header('Content-Disposition: attachment; filename="pins_' . $timestamp . '.csv"');
             $output = fopen('php://output', 'w');
             if (!$rows) {
                 fputcsv($output, []);
