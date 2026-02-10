@@ -138,7 +138,7 @@ function admin_users_reset_and_notify(PDO $pdo, array $config, ?int $userId, int
     if ($user) {
         $resetLink = rtrim($config['app_url'] ?? '', '/') . '/reset?token=' . $tokenResult['reset_token'];
         try {
-            send_reset_email($config, $user['email'], $user['first_name'] ?? '', $resetLink);
+            send_reset_email($config, $user['email'], $user['first_name'] ?? '', $resetLink, $expiryHours);
             $emailSent = true;
         } catch (\Throwable $e) {
             error_log('Reset email failed for user ' . $targetId . ': ' . $e->getMessage());

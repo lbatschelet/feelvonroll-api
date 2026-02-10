@@ -1,22 +1,32 @@
 <?php
+/**
+ * Example configuration – copy to config.local.php and fill in your values.
+ *
+ *   cp config.example.php config.local.php
+ */
 
 return [
+    /* ── Database ── */
     'db_host' => 'localhost',
-    'db_name' => 'your_db_name',
-    'db_user' => 'your_db_user',
-    'db_pass' => 'your_db_password',
-    'admin_token' => 'set_a_long_random_token',
-    'jwt_secret' => 'set_a_long_random_secret',
-    'api_debug' => false,
+    'db_name' => '',
+    'db_user' => '',
+    'db_pass' => '',
 
-    /* SMTP settings for password reset emails */
-    'smtp_host' => 'smtp.forwardemail.net',
-    'smtp_port' => 587,
-    'smtp_user' => '',
-    'smtp_pass' => '',
-    'smtp_from' => 'noreply@feelvonroll.ch',
+    /* ── Authentication ── */
+    'admin_token' => '',   // shared API token (long random string)
+    'jwt_secret'  => '',   // JWT signing secret (long random string)
+
+    /* ── SMTP (password-reset emails) ── */
+    'smtp_host'      => '',   // e.g. smtp.example.com
+    'smtp_port'      => 587,  // 587 for STARTTLS, 465 for SMTPS
+    'smtp_user'      => '',
+    'smtp_pass'      => '',
+    'smtp_from'      => '',   // sender address, e.g. noreply@example.com
     'smtp_from_name' => 'feelvonRoll Admin',
 
-    /* Public URL of the admin frontend (used for building reset links) */
-    'app_url' => 'https://admin.feelvonroll.ch',
+    /* ── Frontend ── */
+    'app_url' => '',   // public URL of admin frontend, e.g. https://admin.example.com
+
+    /* ── Debug ── */
+    'api_debug' => false,
 ];

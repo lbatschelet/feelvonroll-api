@@ -163,7 +163,7 @@ function admin_auth_request_reset(PDO $pdo, array $config, string $email): array
         $result = generate_reset_token($pdo, intval($user['id']));
         $resetLink = rtrim($config['app_url'] ?? '', '/') . '/reset?token=' . $result['reset_token'];
         try {
-            send_reset_email($config, $email, $user['first_name'] ?? '', $resetLink);
+            send_reset_email($config, $email, $user['first_name'] ?? '', $resetLink, 24);
         } catch (\Throwable $e) {
             // Silently fail – never reveal whether email exists
             error_log('Reset email failed: ' . $e->getMessage());
