@@ -42,6 +42,14 @@ if ($action === 'login') {
     json_response(admin_auth_login($pdo, $config, $email, $password));
 }
 
+if ($action === 'validate_token') {
+    $resetToken = $data['reset_token'] ?? '';
+    if (!$resetToken) {
+        json_error('Missing reset token', 400);
+    }
+    json_response(admin_auth_validate_token($pdo, $resetToken));
+}
+
 if ($action === 'set_password') {
     $resetToken = $data['reset_token'] ?? '';
     $password = $data['password'] ?? '';

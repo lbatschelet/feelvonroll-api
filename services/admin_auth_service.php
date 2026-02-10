@@ -108,6 +108,34 @@ function admin_auth_login(PDO $pdo, array $config, string $email, string $passwo
  * @return array
  * @throws ApiError
  */
+/**
+ * Validates a reset token and returns the associated email.
+ *
+ * @param PDO    $pdo
+ * @param string $resetToken
+ * @return array
+ */
+function admin_auth_validate_token(PDO $pdo, string $resetToken): array
+{
+    $resetHash = hash('sha256', $resetToken);
+    $stmt = $pdo->prepare(
+        'SELECT email, reset_token_expires
+         FROM admin_users
+         WHERE reset_token_hash = :hash
+         LIMIT 1'
+    );
+    $stmt->execute(['hash' => $resetHash]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$user) {
+        json_error('Invalid reset token', 400);
+    }
+    $expired = $user['reset_token_expires'] && strtotime($user['reset_token_expires']) < time();
+    if ($expired) {
+        json_error('Reset token expired', 400);
+    }
+    return ['ok' => true, 'email' => $user['email']];
+}
+
 function admin_auth_set_password(PDO $pdo, string $resetToken, string $password): array
 {
     $resetHash = hash('sha256', $resetToken);
