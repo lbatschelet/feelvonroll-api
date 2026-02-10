@@ -260,8 +260,14 @@ function admin_users_update_self(PDO $pdo, int $userId, array $data): array
     if (!$user) {
         json_error('Invalid user', 401);
     }
-    if (!$currentPassword || !password_verify($currentPassword, $user['password_hash'])) {
-        json_error('Current password invalid', 403);
+
+    $wantsPasswordChange = $newPassword || $newPasswordConfirm;
+
+    /* Current password is only required when changing the password */
+    if ($wantsPasswordChange) {
+        if (!$currentPassword || !password_verify($currentPassword, $user['password_hash'])) {
+            json_error('Current password invalid', 403);
+        }
     }
 
     $passwordSql = '';
@@ -272,7 +278,7 @@ function admin_users_update_self(PDO $pdo, int $userId, array $data): array
         'last_name' => $lastName,
         'id' => $userId,
     ];
-    if ($newPassword) {
+    if ($wantsPasswordChange) {
         if ($newPassword !== $newPasswordConfirm) {
             json_error('New passwords do not match', 400);
         }
