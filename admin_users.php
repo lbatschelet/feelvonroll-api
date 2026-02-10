@@ -70,7 +70,23 @@ try {
         if (!$targetId) {
             json_error('Missing user id', 400);
         }
-        json_response(admin_users_reset($pdo, $userId, $targetId));
+        $expiryHours = isset($data['expiry_hours']) ? max(1, intval($data['expiry_hours'])) : 24;
+        json_response(admin_users_reset($pdo, $userId, $targetId, $expiryHours));
+    }
+
+    if ($action === 'reset_notify') {
+        if ($role === 'bootstrap') {
+            json_error('Bootstrap token not allowed', 403);
+        }
+        if (!$isAdmin) {
+            json_error('Forbidden', 403);
+        }
+        $targetId = isset($data['id']) ? intval($data['id']) : 0;
+        if (!$targetId) {
+            json_error('Missing user id', 400);
+        }
+        $expiryHours = isset($data['expiry_hours']) ? max(1, intval($data['expiry_hours'])) : 24;
+        json_response(admin_users_reset_and_notify($pdo, $config, $userId, $targetId, $expiryHours));
     }
 
     if ($action === 'update') {

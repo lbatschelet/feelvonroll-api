@@ -23,6 +23,11 @@ $data = json_request();
 
 $action = $data['action'] ?? '';
 
+if ($action === 'request_reset') {
+    $email = isset($data['email']) ? trim($data['email']) : '';
+    json_response(admin_auth_request_reset($pdo, $config, $email));
+}
+
 if ($action === 'bootstrap_login') {
     $requestToken = $data['admin_token'] ?? '';
     json_response(admin_auth_bootstrap_login($pdo, $config, $requestToken));

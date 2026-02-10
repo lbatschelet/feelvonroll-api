@@ -2,8 +2,10 @@
 /**
  * Admin auth service for login and token operations.
  * Exports: admin_auth_status, admin_auth_bootstrap_login, admin_auth_login,
- *          admin_auth_set_password, admin_auth_refresh.
+ *          admin_auth_set_password, admin_auth_request_reset, admin_auth_refresh.
  */
+require_once __DIR__ . '/token_service.php';
+require_once __DIR__ . '/email_service.php';
 
 /**
  * Returns admin user count and bootstrap status.
@@ -137,6 +139,36 @@ function admin_auth_set_password(PDO $pdo, string $resetToken, string $password)
          WHERE id = :id'
     );
     $stmt->execute(['hash' => $hash, 'id' => intval($user['id'])]);
+    return ['ok' => true];
+}
+
+/**
+ * Handles public password reset request (no auth required).
+ * Always returns the same response to prevent email enumeration.
+ *
+ * @param PDO   $pdo
+ * @param array $config
+ * @param string $email
+ * @return array
+ */
+function admin_auth_request_reset(PDO $pdo, array $config, string $email): array
+{
+    if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => true];
+    }
+    $stmt = $pdo->prepare('SELECT id, first_name FROM admin_users WHERE email = :email');
+    $stmt->execute(['email' => $email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($user) {
+        $result = generate_reset_token($pdo, intval($user['id']));
+        $resetLink = rtrim($config['app_url'] ?? '', '/') . '/reset?token=' . $result['reset_token'];
+        try {
+            send_reset_email($config, $email, $user['first_name'] ?? '', $resetLink);
+        } catch (\Throwable $e) {
+            // Silently fail – never reveal whether email exists
+            error_log('Reset email failed: ' . $e->getMessage());
+        }
+    }
     return ['ok' => true];
 }
 

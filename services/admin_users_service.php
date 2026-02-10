@@ -4,6 +4,7 @@
  * Exports: admin_users_list, admin_users_create, admin_users_reset, admin_users_update,
  *          admin_users_update_self, admin_users_delete.
  */
+require_once __DIR__ . '/token_service.php';
 
 /**
  * Returns admin users list.
@@ -55,24 +56,18 @@ function admin_users_create(PDO $pdo, ?int $userId, string $role, array $data): 
         }
         $isAdmin = 1;
     }
-    $resetToken = null;
-    $expires = null;
-    $hash = null;
+    $passwordHash = null;
     $mustSet = 1;
     if ($password) {
         if (strlen($password) < 8) {
             json_error('Password too short', 400);
         }
-        $hash = password_hash($password, PASSWORD_DEFAULT);
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         $mustSet = 0;
-    } else {
-        $resetToken = base64url_encode(random_bytes(32));
-        $resetHash = hash('sha256', $resetToken);
-        $expires = date('Y-m-d H:i:s', time() + 24 * 3600);
     }
     $stmt = $pdo->prepare(
-        'INSERT INTO admin_users (email, name, first_name, last_name, is_admin, password_hash, must_set_password, reset_token_hash, reset_token_expires)
-         VALUES (:email, :name, :first_name, :last_name, :is_admin, :password_hash, :must_set, :hash, :expires)'
+        'INSERT INTO admin_users (email, name, first_name, last_name, is_admin, password_hash, must_set_password)
+         VALUES (:email, :name, :first_name, :last_name, :is_admin, :password_hash, :must_set)'
     );
     $stmt->execute([
         'email' => $email,
@@ -80,21 +75,22 @@ function admin_users_create(PDO $pdo, ?int $userId, string $role, array $data): 
         'first_name' => $firstName,
         'last_name' => $lastName,
         'is_admin' => $isAdmin,
-        'password_hash' => $hash,
+        'password_hash' => $passwordHash,
         'must_set' => $mustSet,
-        'hash' => $resetToken ? $resetHash : null,
-        'expires' => $expires,
     ]);
     $newId = intval($pdo->lastInsertId());
     log_admin_action($pdo, $userId, 'admin_user_create', 'admin_users', [
         'id' => $newId,
         'email' => $email,
     ]);
-    return [
-        'id' => $newId,
-        'reset_token' => $resetToken,
-        'reset_expires' => $expires,
-    ];
+    $result = ['id' => $newId, 'reset_token' => null, 'reset_expires' => null];
+    if (!$password) {
+        $expiryHours = isset($data['expiry_hours']) ? max(1, intval($data['expiry_hours'])) : 24;
+        $tokenResult = generate_reset_token($pdo, $newId, $expiryHours);
+        $result['reset_token'] = $tokenResult['reset_token'];
+        $result['reset_expires'] = $tokenResult['reset_expires'];
+    }
+    return $result;
 }
 
 /**
@@ -105,26 +101,56 @@ function admin_users_create(PDO $pdo, ?int $userId, string $role, array $data): 
  * @param int $targetId
  * @return array
  */
-function admin_users_reset(PDO $pdo, ?int $userId, int $targetId): array
+function admin_users_reset(PDO $pdo, ?int $userId, int $targetId, int $expiryHours = 24): array
 {
-    $resetToken = base64url_encode(random_bytes(32));
-    $resetHash = hash('sha256', $resetToken);
-    $expires = date('Y-m-d H:i:s', time() + 24 * 3600);
-    $stmt = $pdo->prepare(
-        'UPDATE admin_users
-         SET must_set_password = 1,
-             reset_token_hash = :hash,
-             reset_token_expires = :expires,
-             token_version = token_version + 1
-         WHERE id = :id'
-    );
-    $stmt->execute([
-        'hash' => $resetHash,
-        'expires' => $expires,
-        'id' => $targetId,
-    ]);
+    $tokenResult = generate_reset_token($pdo, $targetId, $expiryHours);
     log_admin_action($pdo, $userId, 'admin_user_reset', 'admin_users', ['id' => $targetId]);
-    return ['id' => $targetId, 'reset_token' => $resetToken, 'reset_expires' => $expires];
+    return [
+        'id' => $targetId,
+        'reset_token' => $tokenResult['reset_token'],
+        'reset_expires' => $tokenResult['reset_expires'],
+    ];
+}
+
+/**
+ * Generates a reset token and sends a reset email to the user.
+ * Returns the token as fallback even if email fails.
+ *
+ * @param PDO   $pdo
+ * @param array $config
+ * @param int|null $userId
+ * @param int   $targetId
+ * @param int   $expiryHours
+ * @return array
+ */
+function admin_users_reset_and_notify(PDO $pdo, array $config, ?int $userId, int $targetId, int $expiryHours = 24): array
+{
+    require_once __DIR__ . '/email_service.php';
+
+    $tokenResult = generate_reset_token($pdo, $targetId, $expiryHours);
+    log_admin_action($pdo, $userId, 'admin_user_reset_notify', 'admin_users', ['id' => $targetId]);
+
+    $stmt = $pdo->prepare('SELECT email, first_name FROM admin_users WHERE id = :id');
+    $stmt->execute(['id' => $targetId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $emailSent = false;
+    if ($user) {
+        $resetLink = rtrim($config['app_url'] ?? '', '/') . '/reset?token=' . $tokenResult['reset_token'];
+        try {
+            send_reset_email($config, $user['email'], $user['first_name'] ?? '', $resetLink);
+            $emailSent = true;
+        } catch (\Throwable $e) {
+            error_log('Reset email failed for user ' . $targetId . ': ' . $e->getMessage());
+        }
+    }
+
+    return [
+        'id' => $targetId,
+        'reset_token' => $tokenResult['reset_token'],
+        'reset_expires' => $tokenResult['reset_expires'],
+        'email_sent' => $emailSent,
+    ];
 }
 
 /**
