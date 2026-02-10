@@ -27,11 +27,12 @@ function send_reset_email(array $config, string $to, string $name, string $link)
     /* SMTP settings */
     $mail->isSMTP();
     $mail->Host       = $config['smtp_host'] ?? 'smtp.forwardemail.net';
-    $mail->Port       = intval($config['smtp_port'] ?? 587);
+    $port = intval($config['smtp_port'] ?? 587);
+    $mail->Port       = $port;
     $mail->SMTPAuth   = true;
     $mail->Username   = $config['smtp_user'] ?? '';
     $mail->Password   = $config['smtp_pass'] ?? '';
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->SMTPSecure = $port === 465 ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
     $mail->CharSet    = 'UTF-8';
 
     /* Sender / recipient */
