@@ -14,12 +14,21 @@ try {
     $userId = isset($payload['user_id']) ? intval($payload['user_id']) : null;
 
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        // Detail view: GET ?id=N returns questionnaire with slots
+        $detailId = isset($_GET['id']) ? intval($_GET['id']) : 0;
+        if ($detailId) {
+            json_response(admin_questionnaire_detail($pdo, $detailId));
+        }
         json_response(admin_questionnaires_list($pdo));
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = json_request();
         $action = $data['action'] ?? '';
+
+        if ($action === 'save_full') {
+            json_response(admin_questionnaire_save_full($pdo, $userId, $data));
+        }
 
         if ($action === 'upsert') {
             json_response(admin_questionnaires_upsert($pdo, $userId, $data));

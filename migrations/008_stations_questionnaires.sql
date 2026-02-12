@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS stations (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_station_key (station_key),
-    FOREIGN KEY (questionnaire_id) REFERENCES questionnaires(id) ON SET NULL
+    FOREIGN KEY (questionnaire_id) REFERENCES questionnaires(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS pin_answers (

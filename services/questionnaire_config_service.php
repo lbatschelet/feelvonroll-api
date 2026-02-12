@@ -162,6 +162,160 @@ function admin_questionnaire_slots_save(PDO $pdo, ?int $adminUserId, int $questi
     return ['ok' => true];
 }
 
+/**
+ * Atomic full save: upsert questionnaire + replace all slots in a single transaction.
+ * If anything fails, no data is committed.
+ *
+ * @param PDO      $pdo
+ * @param int|null $adminUserId
+ * @param array    $data  Must contain: questionnaire_key, name. Optional: id, description, is_active, slots.
+ * @return array
+ * @throws ApiError
+ */
+function admin_questionnaire_save_full(PDO $pdo, ?int $adminUserId, array $data): array
+{
+    $key = trim($data['questionnaire_key'] ?? '');
+    $name = trim($data['name'] ?? '');
+
+    if (!$key || !$name) {
+        throw new ApiError('Key and name are required', 400);
+    }
+
+    $id = isset($data['id']) ? intval($data['id']) : null;
+    $description = $data['description'] ?? null;
+    $isActive = isset($data['is_active']) ? ($data['is_active'] ? 1 : 0) : 1;
+    $slots = $data['slots'] ?? [];
+
+    $pdo->beginTransaction();
+    try {
+        // ── Upsert questionnaire ──
+        if ($id) {
+            // Check unique key (exclude self)
+            $existing = $pdo->prepare('SELECT COUNT(*) FROM questionnaires WHERE questionnaire_key = :key AND id != :id');
+            $existing->execute(['key' => $key, 'id' => $id]);
+            if (intval($existing->fetchColumn()) > 0) {
+                throw new ApiError("Questionnaire key already exists: $key", 400);
+            }
+
+            $stmt = $pdo->prepare(
+                'UPDATE questionnaires
+                 SET questionnaire_key = :key, name = :name, description = :description, is_active = :is_active
+                 WHERE id = :id'
+            );
+            $stmt->execute([
+                'key' => $key, 'name' => $name, 'description' => $description,
+                'is_active' => $isActive, 'id' => $id,
+            ]);
+            $action = 'update_questionnaire';
+        } else {
+            // Check unique key
+            $existing = $pdo->prepare('SELECT COUNT(*) FROM questionnaires WHERE questionnaire_key = :key');
+            $existing->execute(['key' => $key]);
+            if (intval($existing->fetchColumn()) > 0) {
+                throw new ApiError("Questionnaire key already exists: $key", 400);
+            }
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO questionnaires (questionnaire_key, name, description, is_default, is_active)
+                 VALUES (:key, :name, :description, 0, :is_active)'
+            );
+            $stmt->execute([
+                'key' => $key, 'name' => $name, 'description' => $description, 'is_active' => $isActive,
+            ]);
+            $id = intval($pdo->lastInsertId());
+            $action = 'create_questionnaire';
+        }
+
+        // ── Replace all slots ──
+        $pdo->prepare(
+            'DELETE FROM questionnaire_slot_questions
+             WHERE slot_id IN (SELECT id FROM questionnaire_slots WHERE questionnaire_id = :qid)'
+        )->execute(['qid' => $id]);
+        $pdo->prepare('DELETE FROM questionnaire_slots WHERE questionnaire_id = :qid')
+            ->execute(['qid' => $id]);
+
+        $slotStmt = $pdo->prepare(
+            'INSERT INTO questionnaire_slots (questionnaire_id, sort, mode, pool_count, required)
+             VALUES (:qid, :sort, :mode, :pool_count, :required)'
+        );
+        $sqStmt = $pdo->prepare(
+            'INSERT INTO questionnaire_slot_questions (slot_id, question_key)
+             VALUES (:slot_id, :question_key)'
+        );
+
+        foreach ($slots as $slot) {
+            $slotStmt->execute([
+                'qid' => $id,
+                'sort' => intval($slot['sort'] ?? 0),
+                'mode' => $slot['mode'] ?? 'fixed',
+                'pool_count' => intval($slot['pool_count'] ?? 1),
+                'required' => ($slot['required'] ?? false) ? 1 : 0,
+            ]);
+            $slotId = $pdo->lastInsertId();
+
+            foreach ($slot['questions'] ?? [] as $questionKey) {
+                $sqStmt->execute([
+                    'slot_id' => $slotId,
+                    'question_key' => $questionKey,
+                ]);
+            }
+        }
+
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+
+    log_admin_action($pdo, $adminUserId, $action, "questionnaire:$id", [
+        'key' => $key, 'name' => $name, 'slot_count' => count($slots),
+    ]);
+
+    return ['ok' => true, 'id' => $id];
+}
+
+/**
+ * Returns a single questionnaire with its slots and assigned questions.
+ *
+ * @param PDO $pdo
+ * @param int $id
+ * @return array
+ * @throws ApiError
+ */
+function admin_questionnaire_detail(PDO $pdo, int $id): array
+{
+    $stmt = $pdo->prepare('SELECT * FROM questionnaires WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        throw new ApiError('Questionnaire not found', 404);
+    }
+
+    $slotStmt = $pdo->prepare(
+        'SELECT id, sort, mode, pool_count, required
+         FROM questionnaire_slots
+         WHERE questionnaire_id = :qid
+         ORDER BY sort ASC'
+    );
+    $slotStmt->execute(['qid' => $id]);
+    $slots = $slotStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $sqStmt = $pdo->prepare(
+        'SELECT question_key FROM questionnaire_slot_questions WHERE slot_id = :sid'
+    );
+
+    foreach ($slots as &$slot) {
+        $sqStmt->execute(['sid' => $slot['id']]);
+        $slot['questions'] = $sqStmt->fetchAll(PDO::FETCH_COLUMN);
+        $slot['required'] = intval($slot['required']);
+        $slot['pool_count'] = intval($slot['pool_count']);
+    }
+
+    $row['slots'] = $slots;
+    return $row;
+}
+
 // ── Internal helpers ────────────────────────────────────────────
 
 function create_questionnaire(PDO $pdo, ?int $adminUserId, string $key, string $name, ?string $description, int $isActive): array
