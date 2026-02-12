@@ -20,13 +20,30 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-// TEMPORARY DEBUG — remove after fixing
-if (isset($_GET['debug'])) {
-    echo json_encode([
-        'query_string' => $_SERVER['QUERY_STRING'] ?? '(not set)',
-        'request_uri'  => $_SERVER['REQUEST_URI'] ?? '(not set)',
-        'get_params'   => $_GET,
-    ], JSON_PRETTY_PRINT);
+// TEMPORARY: trace every step to find where "api_debug" comes from
+if (isset($_GET['trace'])) {
+    $trace = [];
+    $trace['step1_GET_before_includes'] = $_GET;
+
+    require_once __DIR__ . '/helpers.php';
+    $trace['step2_GET_after_helpers'] = $_GET;
+
+    require_once __DIR__ . '/services/stations_service.php';
+    $trace['step3_GET_after_service'] = $_GET;
+
+    $key = isset($_GET['station_key']) ? trim($_GET['station_key']) : '';
+    $trace['step4_key_value'] = $key;
+
+    $pdo = require __DIR__ . '/db.php';
+    $trace['step5_GET_after_db'] = $_GET;
+    $trace['step5_key_still'] = $key;
+
+    // Try the actual query
+    $stmt = $pdo->prepare('SELECT station_key, name, camera_x, camera_y FROM stations LIMIT 5');
+    $stmt->execute();
+    $trace['step6_all_stations'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode($trace, JSON_PRETTY_PRINT);
     exit;
 }
 
@@ -36,7 +53,7 @@ require_once __DIR__ . '/services/stations_service.php';
 try {
     $key = isset($_GET['station_key']) ? trim($_GET['station_key']) : '';
     if (!$key) {
-        json_error('Missing station key', 400);
+        json_error('Missing station_key parameter', 400);
     }
 
     $pdo = require __DIR__ . '/db.php';
