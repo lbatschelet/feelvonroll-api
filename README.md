@@ -12,23 +12,15 @@ PHP REST API for the [feelvonRoll](https://github.com/lbatschelet/feelvonroll) p
 
 ## Setup
 
-1. **Create the database schema**
+1. **Create the database schema** (consolidated, includes all migrations 001–008)
 
    ```bash
    mysql -u root your_db_name < schema.sql
    ```
 
-2. **Apply migrations** (in order)
+   > **Upgrading an existing database?** Apply only the migrations you haven't run yet from the `migrations/` directory (001 through 008).
 
-   ```bash
-   mysql -u root your_db_name < migrations/001_questionnaire.sql
-   mysql -u root your_db_name < migrations/002_slider_percent.sql
-   mysql -u root your_db_name < migrations/003_admin_users.sql
-   mysql -u root your_db_name < migrations/004_admin_token_version.sql
-   mysql -u root your_db_name < migrations/005_admin_roles_profile.sql
-   ```
-
-3. **Configure credentials**
+2. **Configure credentials**
 
    ```bash
    cp config.example.php config.local.php
@@ -36,7 +28,7 @@ PHP REST API for the [feelvonRoll](https://github.com/lbatschelet/feelvonroll) p
 
    Edit `config.local.php` with your database credentials, a `jwt_secret`, and an `admin_token` (used for the initial bootstrap).
 
-4. **Run locally** (development)
+3. **Run locally** (development)
 
    ```bash
    php -S localhost:8080
@@ -53,6 +45,9 @@ See [API.md](API.md) for the full endpoint reference with request/response examp
 | `GET` | `/pins.php` | List approved pins (optional `?floor=N`) |
 | `POST` | `/pins.php` | Create a pin |
 | `GET` | `/questions.php` | Questionnaire config (optional `?lang=de`) |
+| `GET` | `/questionnaire.php` | Resolve a questionnaire by key (optional `?key=...&lang=de`) |
+| `GET` | `/stations.php` | Station info by key (`?key=...`) |
+| `GET` | `/content.php` | Content page by key (`?key=about&lang=de`) |
 | `GET` | `/languages.php` | Enabled languages |
 | `GET` | `/translations.php` | Translations by language and prefix |
 
@@ -67,6 +62,9 @@ See [API.md](API.md) for the full endpoint reference with request/response examp
 | `GET/POST` | `/admin_languages.php` | List, upsert, toggle, delete languages |
 | `POST` | `/admin_translations.php` | Upsert, delete translations |
 | `GET/POST` | `/admin_users.php` | List, create, update, delete users, password reset |
+| `GET/POST` | `/admin_questionnaires.php` | List, create, update, delete questionnaires and slots |
+| `GET/POST` | `/admin_stations.php` | List, create, update, delete stations |
+| `GET/POST` | `/admin_content.php` | Content page management |
 | `GET` | `/admin_audit.php` | Audit log with pagination |
 
 ## Authentication
