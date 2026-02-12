@@ -19,10 +19,10 @@ $envMap = [
     'api_debug' => 'API_DEBUG',
 ];
 
-foreach ($envMap as $key => $envKey) {
+foreach ($envMap as $configKey => $envKey) {
     $value = getenv($envKey);
     if ($value !== false && $value !== '') {
-        $config[$key] = $value;
+        $config[$configKey] = $value;
     }
 }
 
