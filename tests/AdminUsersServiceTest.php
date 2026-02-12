@@ -83,6 +83,8 @@ final class AdminUsersServiceTest extends TestCase
             'first_name' => 'Ada',
             'last_name' => 'Lovelace',
             'current_password' => 'wrong',
+            'new_password' => 'newpass123',
+            'new_password_confirm' => 'newpass123',
         ]);
     }
 }
