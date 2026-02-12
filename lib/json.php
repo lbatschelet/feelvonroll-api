@@ -14,6 +14,8 @@
 function json_response(array $data, int $status = 200): void
 {
     http_response_code($status);
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Vary: Accept-Encoding, Origin');
     echo json_encode($data);
     exit;
 }

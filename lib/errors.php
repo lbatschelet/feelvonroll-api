@@ -39,6 +39,9 @@ class ApiError extends Exception
 function handle_api_exception(Throwable $error): void
 {
     error_log($error);
+    // Prevent CDN/proxy caching of error responses
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Vary: Accept-Encoding, Origin');
     if ($error instanceof ApiError) {
         http_response_code($error->getStatusCode());
         echo json_encode(['error' => $error->getMessage()]);
