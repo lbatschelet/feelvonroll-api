@@ -8,6 +8,7 @@ $config = require __DIR__ . '/config.php';
 if (!$config['db_name'] || !$config['db_user']) {
     http_response_code(500);
     header('Content-Type: application/json');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
     echo json_encode(['error' => 'Database config missing']);
     exit;
 }
@@ -26,6 +27,7 @@ try {
 } catch (PDOException $e) {
     http_response_code(500);
     header('Content-Type: application/json');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
     echo json_encode(['error' => 'Database connection failed']);
     exit;
 }
