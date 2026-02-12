@@ -67,7 +67,9 @@ function admin_questionnaires_upsert(PDO $pdo, ?int $adminUserId, array $data): 
  */
 function admin_questionnaires_delete(PDO $pdo, ?int $adminUserId, int $id): array
 {
-    $row = $pdo->query("SELECT * FROM questionnaires WHERE id = $id")->fetch(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare('SELECT * FROM questionnaires WHERE id = :id');
+    $stmt->execute(['id' => $id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$row) {
         throw new ApiError('Questionnaire not found', 404);
@@ -76,7 +78,7 @@ function admin_questionnaires_delete(PDO $pdo, ?int $adminUserId, int $id): arra
         throw new ApiError('Cannot delete the default questionnaire', 400);
     }
 
-    $pdo->exec("DELETE FROM questionnaires WHERE id = $id");
+    $pdo->prepare('DELETE FROM questionnaires WHERE id = :id')->execute(['id' => $id]);
 
     log_admin_action($pdo, $adminUserId, 'delete_questionnaire', "questionnaire:$id", [
         'key' => $row['questionnaire_key'],
@@ -99,7 +101,9 @@ function admin_questionnaires_delete(PDO $pdo, ?int $adminUserId, int $id): arra
 function admin_questionnaire_slots_save(PDO $pdo, ?int $adminUserId, int $questionnaireId, array $slots): array
 {
     // Verify questionnaire exists
-    $exists = $pdo->query("SELECT COUNT(*) FROM questionnaires WHERE id = $questionnaireId")->fetchColumn();
+    $existsStmt = $pdo->prepare('SELECT COUNT(*) FROM questionnaires WHERE id = :id');
+    $existsStmt->execute(['id' => $questionnaireId]);
+    $exists = $existsStmt->fetchColumn();
     if (!intval($exists)) {
         throw new ApiError('Questionnaire not found', 404);
     }
@@ -107,13 +111,14 @@ function admin_questionnaire_slots_save(PDO $pdo, ?int $adminUserId, int $questi
     $pdo->beginTransaction();
     try {
         // Delete existing slot_questions for this questionnaire's slots
-        $pdo->exec(
-            "DELETE FROM questionnaire_slot_questions
-             WHERE slot_id IN (SELECT id FROM questionnaire_slots WHERE questionnaire_id = $questionnaireId)"
-        );
+        $pdo->prepare(
+            'DELETE FROM questionnaire_slot_questions
+             WHERE slot_id IN (SELECT id FROM questionnaire_slots WHERE questionnaire_id = :qid)'
+        )->execute(['qid' => $questionnaireId]);
 
         // Delete existing slots
-        $pdo->exec("DELETE FROM questionnaire_slots WHERE questionnaire_id = $questionnaireId");
+        $pdo->prepare('DELETE FROM questionnaire_slots WHERE questionnaire_id = :qid')
+            ->execute(['qid' => $questionnaireId]);
 
         // Insert new slots
         $slotStmt = $pdo->prepare(
