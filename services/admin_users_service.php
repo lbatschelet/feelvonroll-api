@@ -94,6 +94,45 @@ function admin_users_create(PDO $pdo, ?int $userId, string $role, array $data): 
 }
 
 /**
+ * Creates an admin user and attempts to send a password-setup email.
+ * Falls back to returning the reset token if email fails.
+ *
+ * @param PDO   $pdo
+ * @param array $config
+ * @param int|null $userId
+ * @param string $role
+ * @param array  $data
+ * @return array
+ */
+function admin_users_create_and_notify(PDO $pdo, array $config, ?int $userId, string $role, array $data): array
+{
+    require_once __DIR__ . '/email_service.php';
+
+    $result = admin_users_create($pdo, $userId, $role, $data);
+
+    $emailSent = false;
+    if ($result['reset_token']) {
+        $stmt = $pdo->prepare('SELECT email, first_name FROM admin_users WHERE id = :id');
+        $stmt->execute(['id' => $result['id']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user) {
+            $expiryHours = isset($data['expiry_hours']) ? max(1, intval($data['expiry_hours'])) : 24;
+            $resetLink = rtrim($config['app_url'] ?? '', '/') . '/reset?token=' . $result['reset_token'];
+            try {
+                send_reset_email($config, $user['email'], $user['first_name'] ?? '', $resetLink, $expiryHours);
+                $emailSent = true;
+            } catch (\Throwable $e) {
+                error_log('Welcome email failed for user ' . $result['id'] . ': ' . $e->getMessage());
+            }
+        }
+    }
+
+    $result['email_sent'] = $emailSent;
+    return $result;
+}
+
+/**
  * Generates a reset token and invalidates tokens for a user.
  *
  * @param PDO $pdo

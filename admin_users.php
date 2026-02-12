@@ -53,10 +53,17 @@ try {
     $action = $data['action'] ?? '';
 
     if ($action === 'create') {
-        if (!$isAdmin) {
+        if ($role !== 'bootstrap' && !$isAdmin) {
             json_error('Forbidden', 403);
         }
         json_response(admin_users_create($pdo, $userId, $role, $data));
+    }
+
+    if ($action === 'create_notify') {
+        if ($role !== 'bootstrap' && !$isAdmin) {
+            json_error('Forbidden', 403);
+        }
+        json_response(admin_users_create_and_notify($pdo, $config, $userId, $role, $data));
     }
 
     if ($action === 'reset') {
