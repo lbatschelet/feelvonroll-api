@@ -20,6 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
+// TEMPORARY DEBUG — remove after fixing
+if (isset($_GET['debug'])) {
+    echo json_encode([
+        'query_string' => $_SERVER['QUERY_STRING'] ?? '(not set)',
+        'request_uri'  => $_SERVER['REQUEST_URI'] ?? '(not set)',
+        'get_params'   => $_GET,
+    ], JSON_PRETTY_PRINT);
+    exit;
+}
+
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/services/stations_service.php';
 
