@@ -24,7 +24,7 @@ require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/services/stations_service.php';
 
 try {
-    $key = isset($_GET['key']) ? trim($_GET['key']) : '';
+    $key = isset($_GET['station_key']) ? trim($_GET['station_key']) : '';
     if (!$key) {
         json_error('Missing station key', 400);
     }
