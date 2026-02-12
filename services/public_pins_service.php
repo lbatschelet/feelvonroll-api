@@ -91,9 +91,14 @@ function public_pins_create(PDO $pdo, array $data): array
         }
     }
 
+    $stationKey = isset($data['station_key']) ? trim($data['station_key']) : null;
+    if ($stationKey === '') {
+        $stationKey = null;
+    }
+
     $stmt = $pdo->prepare(
-        'INSERT INTO pins (floor_index, position_x, position_y, position_z, wellbeing, note, group_key)
-         VALUES (:floor_index, :position_x, :position_y, :position_z, :wellbeing, :note, :group_key)'
+        'INSERT INTO pins (floor_index, position_x, position_y, position_z, wellbeing, note, group_key, station_key)
+         VALUES (:floor_index, :position_x, :position_y, :position_z, :wellbeing, :note, :group_key, :station_key)'
     );
     $stmt->execute([
         'floor_index' => $floorIndex,
@@ -103,6 +108,7 @@ function public_pins_create(PDO $pdo, array $data): array
         'wellbeing' => $wellbeing,
         'note' => $note,
         'group_key' => $groupKey,
+        'station_key' => $stationKey,
     ]);
 
     $id = $pdo->lastInsertId();
@@ -116,6 +122,26 @@ function public_pins_create(PDO $pdo, array $data): array
                 'pin_id' => $id,
                 'question_key' => 'reasons',
                 'reason_key' => $reasonKey,
+            ]);
+        }
+    }
+
+    // Store generic answers in pin_answers (for non-hardcoded questions)
+    $genericAnswers = isset($data['generic_answers']) && is_array($data['generic_answers'])
+        ? $data['generic_answers'] : [];
+    if (!empty($genericAnswers)) {
+        $answerStmt = $pdo->prepare(
+            'INSERT INTO pin_answers (pin_id, question_key, answer_text, answer_numeric)
+             VALUES (:pin_id, :question_key, :answer_text, :answer_numeric)'
+        );
+        foreach ($genericAnswers as $qKey => $value) {
+            $answerText = is_string($value) ? $value : null;
+            $answerNumeric = is_numeric($value) ? floatval($value) : null;
+            $answerStmt->execute([
+                'pin_id' => $id,
+                'question_key' => $qKey,
+                'answer_text' => $answerText,
+                'answer_numeric' => $answerNumeric,
             ]);
         }
     }
