@@ -111,6 +111,48 @@ Response:
 }
 ```
 
+### `GET /questionnaire.php`
+Resolve a questionnaire by key. Falls back to the default questionnaire.
+
+Query params:
+- `key` (optional, defaults to `default`)
+- `lang` (optional, defaults to `de`)
+
+Response: same shape as `GET /questions.php`.
+
+### `GET /stations.php`
+Get station info by key.
+
+Query params:
+- `key` (required)
+
+Response:
+```json
+{
+  "station_key": "eg-01",
+  "name": "Station EG 01",
+  "floor_index": 0,
+  "camera": { "x": 1.2, "y": 3.0, "z": -2.1 },
+  "target": { "x": 0.5, "y": 0.0, "z": -1.0 },
+  "questionnaire_key": "default"
+}
+```
+
+### `GET /content.php`
+Fetch a content page (e.g. About text).
+
+Query params:
+- `key` (required, e.g. `about`)
+- `lang` (optional, defaults to `de`)
+
+Response:
+```json
+{
+  "body": "# Welcome\nMarkdown content...",
+  "updated_at": "2026-01-15 10:30:00"
+}
+```
+
 ## Admin endpoints
 
 All admin requests require a JWT Bearer token in the `Authorization` header:
@@ -303,3 +345,86 @@ Response:
 
 ### `GET /admin_pins.php?action=export_csv`
 Export all pins as CSV file. Returns `Content-Type: text/csv` with a timestamped filename.
+
+### `GET /admin_questionnaires.php`
+List all questionnaires with their slots.
+
+Response:
+```json
+[
+  {
+    "id": 1,
+    "questionnaire_key": "default",
+    "name": "Default",
+    "description": null,
+    "is_default": 1,
+    "slots": [
+      { "id": 1, "sort": 10, "is_active": 1, "is_required": 0, "question_key": "wellbeing" }
+    ]
+  }
+]
+```
+
+### `POST /admin_questionnaires.php`
+Manage questionnaires.
+
+**Upsert questionnaire:**
+```json
+{ "action": "upsert", "questionnaire_key": "my-survey", "name": "My Survey", "description": "..." }
+```
+
+**Delete questionnaire:**
+```json
+{ "action": "delete", "id": 1 }
+```
+
+**Upsert slot (add/update a question in a questionnaire):**
+```json
+{ "action": "upsert_slot", "questionnaire_id": 1, "question_key": "wellbeing", "sort": 10, "is_active": 1, "is_required": 1 }
+```
+
+**Delete slot:**
+```json
+{ "action": "delete_slot", "id": 5 }
+```
+
+### `GET /admin_stations.php`
+List all stations with their assigned questionnaire name.
+
+### `POST /admin_stations.php`
+Manage stations.
+
+**Upsert station:**
+```json
+{
+  "action": "upsert",
+  "station_key": "eg-01",
+  "name": "Station EG 01",
+  "floor_index": 0,
+  "camera_x": 1.2, "camera_y": 3.0, "camera_z": -2.1,
+  "target_x": 0.5, "target_y": 0.0, "target_z": -1.0,
+  "questionnaire_id": 1,
+  "is_active": 1
+}
+```
+
+**Delete station:**
+```json
+{ "action": "delete", "id": 1 }
+```
+
+### `GET /admin_content.php`
+List all content pages.
+
+### `POST /admin_content.php`
+Upsert or delete content pages.
+
+**Upsert:**
+```json
+{ "action": "upsert", "page_key": "about", "lang": "de", "body": "# About\nMarkdown..." }
+```
+
+**Delete:**
+```json
+{ "action": "delete", "page_key": "about", "lang": "de" }
+```

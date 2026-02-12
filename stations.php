@@ -1,6 +1,6 @@
 <?php
 /**
- * Public questions endpoint for questionnaire config.
+ * Public stations endpoint: get station info by key.
  */
 
 header('Content-Type: application/json');
@@ -21,17 +21,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 require_once __DIR__ . '/helpers.php';
-require_once __DIR__ . '/services/public_questions_service.php';
+require_once __DIR__ . '/services/stations_service.php';
 
 try {
-    $lang = isset($_GET['lang']) ? trim($_GET['lang']) : 'de';
-    if (!$lang || !preg_match('/^[a-z]{2}(-[a-z]{2})?$/i', $lang)) {
-        json_error('Invalid lang', 400);
+    $stationKey = isset($_GET['key']) ? trim($_GET['key']) : '';
+    if (!$stationKey) {
+        json_error('Missing station key', 400);
     }
 
     $pdo = require __DIR__ . '/db.php';
 
-    echo json_encode(public_questions_list($pdo, $lang));
+    json_response(public_station_get($pdo, $stationKey));
 } catch (Throwable $error) {
     handle_api_exception($error);
 }
