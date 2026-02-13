@@ -88,7 +88,6 @@ function issue_build_body(array $data): string
     $category = $data['category'] ?? 'other';
     $description = $data['description'] ?? '';
     $steps = $data['steps'] ?? '';
-    $email = $data['email'] ?? '';
     $debug = $data['debug'] ?? [];
 
     $body = '';
@@ -105,12 +104,6 @@ function issue_build_body(array $data): string
     if ($category === 'bug' && !empty($steps)) {
         $body .= "**To Reproduce**\n";
         $body .= $steps . "\n\n";
-    }
-
-    // Contact
-    if (!empty($email)) {
-        $body .= "**Contact**\n";
-        $body .= $email . "\n\n";
     }
 
     // Debug information
