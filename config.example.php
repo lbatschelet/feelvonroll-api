@@ -16,6 +16,10 @@ return [
     'admin_token' => '',   // shared API token (long random string)
     'jwt_secret'  => '',   // JWT signing secret (long random string)
 
+    /* ── GitHub (issue submission) ── */
+    'github_token' => '',   // PAT with repo scope for creating issues
+    'github_repo'  => 'lbatschelet/feelvonroll',  // owner/repo
+
     /* ── SMTP (password-reset emails) ── */
     'smtp_host'      => '',   // e.g. smtp.example.com
     'smtp_port'      => 587,  // 587 for STARTTLS, 465 for SMTPS
