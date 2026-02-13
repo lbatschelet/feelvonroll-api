@@ -17,8 +17,9 @@ return [
     'jwt_secret'  => '',   // JWT signing secret (long random string)
 
     /* ── GitHub (issue submission) ── */
-    'github_token' => '',   // PAT with repo scope for creating issues
-    'github_repo'  => 'lbatschelet/feelvonroll',  // owner/repo
+    'github_token'     => '',   // PAT with repo scope for creating issues
+    'github_repo'      => 'lbatschelet/feelvonroll',  // owner/repo
+    'github_assignees' => '',   // auto-assign to these users (comma-separated, e.g. 'lbatschelet')
 
     /* ── SMTP (password-reset emails) ── */
     'smtp_host'      => '',   // e.g. smtp.example.com

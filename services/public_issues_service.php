@@ -145,11 +145,19 @@ function issue_create_github_issue(array $data, array $config): array
 
     $url = "https://api.github.com/repos/{$repo}/issues";
 
-    $payload = json_encode([
+    $issueData = [
         'title'  => $title,
         'body'   => $body,
         'labels' => [$label],
-    ]);
+    ];
+
+    // Auto-assign configured users (comma-separated GitHub usernames)
+    $assignees = $config['github_assignees'] ?? '';
+    if (!empty($assignees)) {
+        $issueData['assignees'] = array_map('trim', explode(',', $assignees));
+    }
+
+    $payload = json_encode($issueData);
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [
