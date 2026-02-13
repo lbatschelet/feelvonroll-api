@@ -23,6 +23,8 @@ return (function () {
         'db_pass' => 'DB_PASS',
         'admin_token' => 'ADMIN_TOKEN',
         'jwt_secret' => 'JWT_SECRET',
+        'github_token' => 'GITHUB_TOKEN',
+        'github_repo' => 'GITHUB_REPO',
         'api_debug' => 'API_DEBUG',
     ];
 
@@ -40,6 +42,8 @@ return (function () {
         'db_pass' => '',
         'admin_token' => '',
         'jwt_secret' => '',
+        'github_token' => '',
+        'github_repo' => 'lbatschelet/feelvonroll',
         'api_debug' => false,
     ];
 
