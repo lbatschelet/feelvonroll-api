@@ -88,7 +88,6 @@ function issue_build_body(array $data): string
     $category = $data['category'] ?? 'other';
     $description = $data['description'] ?? '';
     $steps = $data['steps'] ?? '';
-    $email = $data['email'] ?? '';
     $debug = $data['debug'] ?? [];
 
     $body = '';
@@ -105,12 +104,6 @@ function issue_build_body(array $data): string
     if ($category === 'bug' && !empty($steps)) {
         $body .= "**To Reproduce**\n";
         $body .= $steps . "\n\n";
-    }
-
-    // Contact
-    if (!empty($email)) {
-        $body .= "**Contact**\n";
-        $body .= $email . "\n\n";
     }
 
     // Debug information
@@ -152,11 +145,19 @@ function issue_create_github_issue(array $data, array $config): array
 
     $url = "https://api.github.com/repos/{$repo}/issues";
 
-    $payload = json_encode([
+    $issueData = [
         'title'  => $title,
         'body'   => $body,
         'labels' => [$label],
-    ]);
+    ];
+
+    // Auto-assign configured users (comma-separated GitHub usernames)
+    $assignees = $config['github_assignees'] ?? '';
+    if (!empty($assignees)) {
+        $issueData['assignees'] = array_map('trim', explode(',', $assignees));
+    }
+
+    $payload = json_encode($issueData);
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [

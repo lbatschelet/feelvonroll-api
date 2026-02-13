@@ -25,6 +25,7 @@ return (function () {
         'jwt_secret' => 'JWT_SECRET',
         'github_token' => 'GITHUB_TOKEN',
         'github_repo' => 'GITHUB_REPO',
+        'github_assignees' => 'GITHUB_ASSIGNEES',
         'api_debug' => 'API_DEBUG',
     ];
 
@@ -44,6 +45,7 @@ return (function () {
         'jwt_secret' => '',
         'github_token' => '',
         'github_repo' => 'lbatschelet/feelvonroll',
+        'github_assignees' => '',
         'api_debug' => false,
     ];
 
