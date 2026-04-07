@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS stations (
   target_x FLOAT NOT NULL,
   target_y FLOAT NOT NULL,
   target_z FLOAT NOT NULL,
+  lv95_e DOUBLE DEFAULT NULL,
+  lv95_n DOUBLE DEFAULT NULL,
   questionnaire_id INT DEFAULT NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -137,6 +139,7 @@ CREATE TABLE IF NOT EXISTS stations (
   UNIQUE KEY uq_station_key (station_key),
   FOREIGN KEY (questionnaire_id) REFERENCES questionnaires(id) ON DELETE SET NULL
 );
+CREATE INDEX idx_stations_lv95 ON stations (lv95_e, lv95_n);
 
 -- ── Admin Users ─────────────────────────────────────────────────────────────
 
@@ -167,6 +170,23 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
   payload JSON DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_admin_audit_user (user_id)
+);
+
+-- ── LV95 Calibration ─────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS lv95_calibrations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  is_active TINYINT(1) NOT NULL DEFAULT 0,
+  created_by_admin_user_id INT NULL,
+  label VARCHAR(128) DEFAULT NULL,
+  points JSON NOT NULL,
+  params JSON NOT NULL,
+  diagnostics JSON DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_lv95_calibrations_active (is_active),
+  INDEX idx_lv95_calibrations_created_by (created_by_admin_user_id),
+  FOREIGN KEY (created_by_admin_user_id) REFERENCES admin_users(id) ON DELETE SET NULL
 );
 
 -- ── Content Pages ───────────────────────────────────────────────────────────
