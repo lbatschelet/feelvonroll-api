@@ -1,0 +1,4 @@
+-- Influence question type: checkboxes with optional per-option slider (-1..1 by default).
+-- Stored in pin_answers.answer_text as JSON object: { "option_key": 0.35, ... }.
+-- questions.type = 'influence'; options in question_options like multi.
+-- No DDL change (questions.type is VARCHAR; "influence" fits).

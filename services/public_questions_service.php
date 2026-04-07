@@ -51,6 +51,10 @@ function public_questions_list(PDO $pdo, string $lang): array
             $translationKeys[] = "questions.$key.legend_low";
             $translationKeys[] = "questions.$key.legend_high";
         }
+        if ($question['type'] === 'influence') {
+            $translationKeys[] = "questions.$key.legend_negative";
+            $translationKeys[] = "questions.$key.legend_positive";
+        }
         if (!empty($optionsByQuestion[$key])) {
             foreach ($optionsByQuestion[$key] as $option) {
                 $translationKeys[] = "options.$key." . $option['option_key'];
@@ -76,6 +80,11 @@ function public_questions_list(PDO $pdo, string $lang): array
         if ($question['type'] === 'slider') {
             $entry['legend_low'] = $translations["questions.$key.legend_low"] ?? '';
             $entry['legend_high'] = $translations["questions.$key.legend_high"] ?? '';
+        }
+
+        if ($question['type'] === 'influence') {
+            $entry['legend_negative'] = $translations["questions.$key.legend_negative"] ?? '';
+            $entry['legend_positive'] = $translations["questions.$key.legend_positive"] ?? '';
         }
 
         if (!empty($optionsByQuestion[$key])) {

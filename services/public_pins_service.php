@@ -130,20 +130,7 @@ function public_pins_create(PDO $pdo, array $data): array
     $genericAnswers = isset($data['generic_answers']) && is_array($data['generic_answers'])
         ? $data['generic_answers'] : [];
     if (!empty($genericAnswers)) {
-        $answerStmt = $pdo->prepare(
-            'INSERT INTO pin_answers (pin_id, question_key, answer_text, answer_numeric)
-             VALUES (:pin_id, :question_key, :answer_text, :answer_numeric)'
-        );
-        foreach ($genericAnswers as $qKey => $value) {
-            $answerText = is_string($value) ? $value : null;
-            $answerNumeric = is_numeric($value) ? floatval($value) : null;
-            $answerStmt->execute([
-                'pin_id' => $id,
-                'question_key' => $qKey,
-                'answer_text' => $answerText,
-                'answer_numeric' => $answerNumeric,
-            ]);
-        }
+        public_pins_store_generic_answers($pdo, intval($id), $genericAnswers);
     }
 
     $stmt = $pdo->prepare(
@@ -175,4 +162,103 @@ function normalize_percent($value): ?float
     $numeric = floatval($value);
     $clamped = min(max($numeric, 0), 100);
     return round($clamped, 2);
+}
+
+/**
+ * @param PDO   $pdo
+ * @param int   $pinId
+ * @param array $genericAnswers question_key => value
+ */
+function public_pins_store_generic_answers(PDO $pdo, int $pinId, array $genericAnswers): void
+{
+    $answerStmt = $pdo->prepare(
+        'INSERT INTO pin_answers (pin_id, question_key, answer_text, answer_numeric)
+         VALUES (:pin_id, :question_key, :answer_text, :answer_numeric)'
+    );
+    foreach ($genericAnswers as $qKey => $value) {
+        $meta = public_pins_load_question_meta($pdo, $qKey);
+        if (!$meta) {
+            json_error("Unknown question: $qKey", 400);
+        }
+        $type = $meta['type'];
+        $config = $meta['config'];
+        $answerText = null;
+        $answerNumeric = null;
+
+        if ($type === 'influence') {
+            $answerText = public_pins_normalize_influence_json($pdo, $qKey, $value, $config);
+        } elseif (is_string($value)) {
+            $answerText = $value;
+        } elseif (is_numeric($value)) {
+            $answerNumeric = floatval($value);
+        } else {
+            json_error("Invalid answer for $qKey", 400);
+        }
+
+        $answerStmt->execute([
+            'pin_id' => $pinId,
+            'question_key' => $qKey,
+            'answer_text' => $answerText,
+            'answer_numeric' => $answerNumeric,
+        ]);
+    }
+}
+
+/**
+ * @return array{type: string, config: array}|null
+ */
+function public_pins_load_question_meta(PDO $pdo, string $qKey): ?array
+{
+    $stmt = $pdo->prepare(
+        'SELECT type, config FROM questions WHERE question_key = :k LIMIT 1'
+    );
+    $stmt->execute(['k' => $qKey]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        return null;
+    }
+    return [
+        'type' => $row['type'],
+        'config' => $row['config'] ? json_decode($row['config'], true) : [],
+    ];
+}
+
+/**
+ * @param mixed $value
+ */
+function public_pins_normalize_influence_json(PDO $pdo, string $qKey, $value, array $config): string
+{
+    if (!is_array($value)) {
+        json_error("Invalid answer for $qKey", 400);
+    }
+    $stmt = $pdo->prepare(
+        'SELECT option_key FROM question_options WHERE question_key = :k AND is_active = 1'
+    );
+    $stmt->execute(['k' => $qKey]);
+    $valid = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $validSet = array_flip($valid);
+
+    $min = isset($config['min']) ? floatval($config['min']) : -1.0;
+    $max = isset($config['max']) ? floatval($config['max']) : 1.0;
+
+    $out = [];
+    foreach ($value as $optKey => $num) {
+        if (!is_string($optKey) && !is_int($optKey)) {
+            json_error("Invalid influence keys for $qKey", 400);
+        }
+        $optKeyStr = (string)$optKey;
+        if (!isset($validSet[$optKeyStr])) {
+            json_error("Invalid option for $qKey: $optKeyStr", 400);
+        }
+        if (!is_numeric($num)) {
+            json_error("Invalid influence value for $optKeyStr", 400);
+        }
+        $v = floatval($num);
+        if ($v < $min || $v > $max) {
+            json_error("Influence value out of range for $optKeyStr", 400);
+        }
+        $out[$optKeyStr] = round($v, 4);
+    }
+
+    return json_encode($out, JSON_UNESCAPED_UNICODE);
 }

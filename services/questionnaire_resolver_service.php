@@ -237,6 +237,10 @@ function load_question_translations(PDO $pdo, string $lang, array $questions, ar
             $translationKeys[] = "questions.$key.legend_low";
             $translationKeys[] = "questions.$key.legend_high";
         }
+        if ($q['type'] === 'influence') {
+            $translationKeys[] = "questions.$key.legend_negative";
+            $translationKeys[] = "questions.$key.legend_positive";
+        }
         if (!empty($optionsByQuestion[$key])) {
             foreach ($optionsByQuestion[$key] as $opt) {
                 $translationKeys[] = "options.$key.{$opt['option_key']}";
@@ -288,6 +292,11 @@ function assemble_question_list(array $resolvedSlots, array $questions, array $o
             if ($q['type'] === 'slider') {
                 $entry['legend_low'] = $translations["questions.$key.legend_low"] ?? '';
                 $entry['legend_high'] = $translations["questions.$key.legend_high"] ?? '';
+            }
+
+            if ($q['type'] === 'influence') {
+                $entry['legend_negative'] = $translations["questions.$key.legend_negative"] ?? '';
+                $entry['legend_positive'] = $translations["questions.$key.legend_positive"] ?? '';
             }
 
             if (!empty($optionsByQuestion[$key])) {
