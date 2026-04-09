@@ -190,7 +190,8 @@ function load_questions_by_keys(PDO $pdo, array $keys): array
     $stmt = $pdo->prepare(
         "SELECT question_key, type, required, sort, config
          FROM questions
-         WHERE question_key IN ($placeholders)"
+         WHERE question_key IN ($placeholders)
+           AND is_active = 1"
     );
     $stmt->execute(array_values($keys));
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
