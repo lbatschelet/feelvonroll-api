@@ -9,13 +9,15 @@
 require_once __DIR__ . '/../lib/lv95_affine.php';
 
 /**
- * CSV column order (stable header even when there are zero rows).
+ * CSV header order for wide export.
+ * Dynamic answer columns are generated as answer__{question_key}.
  *
+ * @param array<int, array<string, mixed>> $rows
  * @return array<int, string>
  */
-function admin_pins_export_header_keys(): array
+function admin_pins_export_header_keys(array $rows = []): array
 {
-    return [
+    $base = [
         'id',
         'floor_index',
         'scene_world_x',
@@ -25,18 +27,30 @@ function admin_pins_export_header_keys(): array
         'lv95_n',
         'lv95_calibration_id',
         'questionnaire_key',
-        'wellbeing',
-        'note',
-        'group_key',
         'station_key',
-        'reasons',
+    ];
+
+    $dynamic = [];
+    foreach ($rows as $row) {
+        foreach ($row as $key => $_value) {
+            if (strpos($key, 'answer__') === 0) {
+                $dynamic[$key] = true;
+            }
+        }
+    }
+    $dynamicKeys = array_keys($dynamic);
+    sort($dynamicKeys, SORT_STRING);
+
+    $tail = [
         'asked_questions',
-        'generic_answers_json',
+        'answers_json',
         'status',
         'approved',
         'created_at',
         'updated_at',
     ];
+
+    return array_merge($base, $dynamicKeys, $tail);
 }
 
 /**
@@ -53,8 +67,10 @@ function admin_pins_export_long_header_keys(): array
         'question_key',
         'asked',
         'answered',
+        'answer_kind',
         'answer_text',
         'answer_numeric',
+        'answer_json',
     ];
 }
 
@@ -127,6 +143,7 @@ function admin_pins_export_rows(PDO $pdo): array
     $affine = $lv95Ctx['affine'];
 
     $out = [];
+    $allAnswerColumnKeys = [];
     foreach ($pins as $row) {
         $val = array_key_exists('approved', $row) ? intval($row['approved']) : 0;
         $status = $val === 1 ? 'approved' : ($val === -1 ? 'rejected' : 'pending');
@@ -145,19 +162,17 @@ function admin_pins_export_rows(PDO $pdo): array
             $lv95CalId = $lv95Id;
         }
 
-        $reasons = isset($row['reason_keys']) && $row['reason_keys'] !== '' && $row['reason_keys'] !== null
-            ? $row['reason_keys']
-            : '';
-
-        $asked = isset($row['asked_questions']) && is_array($row['asked_questions'])
-            ? implode(',', $row['asked_questions'])
-            : '';
-        $genericJson = '';
-        if (array_key_exists('generic_answers', $row)) {
-            $genericJson = json_encode($row['generic_answers'], JSON_UNESCAPED_UNICODE);
+        $askedQuestions = isset($row['asked_questions']) && is_array($row['asked_questions'])
+            ? $row['asked_questions']
+            : [];
+        $answersByKey = admin_pins_collect_answers_from_pin($row);
+        $answerKeys = array_unique(array_merge(array_keys($answersByKey), $askedQuestions));
+        sort($answerKeys, SORT_STRING);
+        foreach ($answerKeys as $qk) {
+            $allAnswerColumnKeys[$qk] = true;
         }
 
-        $out[] = [
+        $entry = [
             'id' => intval($row['id']),
             'floor_index' => intval($row['floor_index']),
             'scene_world_x' => $sx,
@@ -167,19 +182,36 @@ function admin_pins_export_rows(PDO $pdo): array
             'lv95_n' => $lv95N,
             'lv95_calibration_id' => $lv95CalId,
             'questionnaire_key' => $row['questionnaire_key'] ?? 'default',
-            'wellbeing' => floatval($row['wellbeing']),
-            'note' => $row['note'] ?? '',
-            'group_key' => $row['group_key'] ?? '',
             'station_key' => $row['station_key'] ?? '',
-            'reasons' => $reasons,
-            'asked_questions' => $asked,
-            'generic_answers_json' => $genericJson,
+            'asked_questions' => implode(',', $askedQuestions),
+            'answers_json' => json_encode((object)$answersByKey, JSON_UNESCAPED_UNICODE),
             'status' => $status,
             'approved' => $val,
             'created_at' => $row['created_at'] ?? '',
             'updated_at' => $row['updated_at'] ?? '',
         ];
+
+        foreach ($answerKeys as $qk) {
+            $csvKey = 'answer__' . $qk;
+            $entry[$csvKey] = array_key_exists($qk, $answersByKey)
+                ? admin_pins_format_answer_for_csv($answersByKey[$qk])
+                : '';
+        }
+
+        $out[] = $entry;
     }
+
+    $dynamicKeys = array_keys($allAnswerColumnKeys);
+    sort($dynamicKeys, SORT_STRING);
+    foreach ($out as &$entry) {
+        foreach ($dynamicKeys as $qk) {
+            $csvKey = 'answer__' . $qk;
+            if (!array_key_exists($csvKey, $entry)) {
+                $entry[$csvKey] = '';
+            }
+        }
+    }
+    unset($entry);
 
     return $out;
 }
@@ -193,79 +225,34 @@ function admin_pins_export_long_rows(PDO $pdo): array
     $pins = admin_pins_list($pdo);
     if (empty($pins)) return [];
 
-    // Build answer maps.
-    $pinIds = array_map(fn($p) => intval($p['id']), $pins);
-    $placeholders = implode(',', array_fill(0, count($pinIds), '?'));
-
-    $ansStmt = $pdo->prepare(
-        "SELECT pin_id, question_key, answer_text, answer_numeric
-         FROM pin_answers
-         WHERE pin_id IN ($placeholders)"
-    );
-    $ansStmt->execute($pinIds);
-    $ansRows = $ansStmt->fetchAll(PDO::FETCH_ASSOC);
-    $ansByPin = [];
-    foreach ($ansRows as $r) {
-        $pid = intval($r['pin_id']);
-        $qk = (string)($r['question_key'] ?? '');
-        if ($pid <= 0 || $qk === '') continue;
-        $ansByPin[$pid][$qk] = [
-            'answer_text' => $r['answer_text'] ?? null,
-            'answer_numeric' => $r['answer_numeric'] ?? null,
-        ];
-    }
-
-    // Reasons (multi) and core fields handled as synthetic answers.
-    $reasonsStmt = $pdo->prepare(
-        "SELECT pin_id, GROUP_CONCAT(reason_key) AS reasons
-         FROM pin_reasons
-         WHERE pin_id IN ($placeholders) AND question_key = 'reasons'
-         GROUP BY pin_id"
-    );
-    $reasonsStmt->execute($pinIds);
-    $reasonsRows = $reasonsStmt->fetchAll(PDO::FETCH_ASSOC);
-    $reasonsByPin = [];
-    foreach ($reasonsRows as $r) {
-        $reasonsByPin[intval($r['pin_id'])] = $r['reasons'] ?? '';
-    }
-
     $out = [];
     foreach ($pins as $pin) {
         $pid = intval($pin['id']);
+        $answersByKey = admin_pins_collect_answers_from_pin($pin);
         $asked = isset($pin['asked_questions']) && is_array($pin['asked_questions']) ? $pin['asked_questions'] : [];
-        // Include legacy/core questions as asked.
-        $askedSet = array_unique(array_merge($asked, ['wellbeing', 'reasons', 'group', 'note']));
+        // Use asked snapshot as source of truth; for legacy rows without snapshot, fall back to present answers.
+        $askedSet = !empty($asked) ? array_values(array_unique($asked)) : array_keys($answersByKey);
+        sort($askedSet, SORT_STRING);
 
         foreach ($askedSet as $qk) {
             $qk = (string)$qk;
             if ($qk === '') continue;
-            $answered = 0;
+            $value = array_key_exists($qk, $answersByKey) ? $answersByKey[$qk] : null;
+            $answered = admin_pins_is_answer_filled($value) ? 1 : 0;
+            $kind = '';
             $answerText = '';
             $answerNumeric = '';
+            $answerJson = '';
 
-            if ($qk === 'wellbeing') {
-                $answerNumeric = $pin['wellbeing'] ?? '';
-                $answered = ($answerNumeric !== '' && $answerNumeric !== null) ? 1 : 0;
-            } elseif ($qk === 'note') {
-                $answerText = $pin['note'] ?? '';
-                $answered = (trim((string)$answerText) !== '') ? 1 : 0;
-            } elseif ($qk === 'group') {
-                $answerText = $pin['group_key'] ?? '';
-                $answered = (trim((string)$answerText) !== '') ? 1 : 0;
-            } elseif ($qk === 'reasons') {
-                $answerText = $reasonsByPin[$pid] ?? '';
-                $answered = (trim((string)$answerText) !== '') ? 1 : 0;
-            } else {
-                $a = $ansByPin[$pid][$qk] ?? null;
-                if ($a) {
-                    if ($a['answer_text'] !== null && $a['answer_text'] !== '') {
-                        $answerText = $a['answer_text'];
-                        $answered = 1;
-                    } elseif ($a['answer_numeric'] !== null && $a['answer_numeric'] !== '') {
-                        $answerNumeric = $a['answer_numeric'];
-                        $answered = 1;
-                    }
-                }
+            if (is_array($value)) {
+                $kind = 'json';
+                $answerJson = json_encode($value, JSON_UNESCAPED_UNICODE);
+            } elseif (is_int($value) || is_float($value) || (is_string($value) && is_numeric($value))) {
+                $kind = 'numeric';
+                $answerNumeric = $value;
+            } elseif (is_string($value)) {
+                $kind = 'text';
+                $answerText = $value;
             }
 
             $out[] = [
@@ -277,8 +264,10 @@ function admin_pins_export_long_rows(PDO $pdo): array
                 'question_key' => $qk,
                 'asked' => 1,
                 'answered' => $answered,
+                'answer_kind' => $kind,
                 'answer_text' => $answerText,
                 'answer_numeric' => $answerNumeric,
+                'answer_json' => $answerJson,
             ];
         }
     }
@@ -340,6 +329,91 @@ function admin_pins_attach_generic_answers(PDO $pdo, array &$pins): void
         $pid = intval($p['id']);
         $p['generic_answers'] = $byPin[$pid] ?? new stdClass();
     }
+}
+
+/**
+ * Builds a normalized answer map for one pin.
+ * Includes legacy fields and generic pin_answers values.
+ *
+ * @param array<string, mixed> $pin
+ * @return array<string, mixed>
+ */
+function admin_pins_collect_answers_from_pin(array $pin): array
+{
+    $answers = [];
+
+    if (array_key_exists('wellbeing', $pin) && $pin['wellbeing'] !== null && $pin['wellbeing'] !== '') {
+        $answers['wellbeing'] = floatval($pin['wellbeing']);
+    }
+
+    $group = isset($pin['group_key']) ? trim((string)$pin['group_key']) : '';
+    if ($group !== '') {
+        $answers['group'] = $group;
+    }
+
+    $note = isset($pin['note']) ? trim((string)$pin['note']) : '';
+    if ($note !== '') {
+        $answers['note'] = $note;
+    }
+
+    $reasonKeys = [];
+    if (array_key_exists('reason_keys', $pin) && $pin['reason_keys'] !== null && $pin['reason_keys'] !== '') {
+        $reasonKeys = array_values(array_filter(
+            array_map('trim', explode(',', (string)$pin['reason_keys'])),
+            fn($v) => $v !== ''
+        ));
+    } elseif (isset($pin['reasons']) && is_array($pin['reasons'])) {
+        $reasonKeys = array_values(array_filter(
+            array_map(fn($v) => trim((string)$v), $pin['reasons']),
+            fn($v) => $v !== ''
+        ));
+    }
+    if (!empty($reasonKeys)) {
+        $answers['reasons'] = array_values(array_unique($reasonKeys));
+    }
+
+    $generic = $pin['generic_answers'] ?? null;
+    if (is_object($generic)) {
+        $generic = (array)$generic;
+    }
+    if (is_array($generic)) {
+        foreach ($generic as $qk => $value) {
+            $qk = trim((string)$qk);
+            if ($qk === '') continue;
+            $answers[$qk] = $value;
+        }
+    }
+
+    return $answers;
+}
+
+/**
+ * @param mixed $value
+ * @return mixed
+ */
+function admin_pins_format_answer_for_csv($value)
+{
+    if (is_array($value)) {
+        return json_encode($value, JSON_UNESCAPED_UNICODE);
+    }
+    if (is_bool($value)) {
+        return $value ? 1 : 0;
+    }
+    if ($value === null) {
+        return '';
+    }
+    return $value;
+}
+
+/**
+ * @param mixed $value
+ */
+function admin_pins_is_answer_filled($value): bool
+{
+    if ($value === null) return false;
+    if (is_string($value)) return trim($value) !== '';
+    if (is_array($value)) return !empty($value);
+    return true;
 }
 
 /**

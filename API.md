@@ -347,7 +347,13 @@ Response:
 ```
 
 ### `GET /admin_pins.php?action=export_csv`
-Export all pins as CSV file. Returns `Content-Type: text/csv` with a timestamped filename.
+Export all pins as wide CSV file. Includes dynamic answer columns (`answer__{question_key}`),
+`asked_questions`, and unified `answers_json` (legacy + generic answers).
+Returns `Content-Type: text/csv` with a timestamped filename.
+
+### `GET /admin_pins.php?action=export_csv_long`
+Export all pins as long CSV file (one row per asked question per pin) with
+`answer_kind`, `answer_text`, `answer_numeric`, and `answer_json`.
 
 ### `GET /admin_questionnaires.php`
 List all questionnaires with their slots.

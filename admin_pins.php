@@ -23,7 +23,7 @@ try {
         $action = isset($_GET['action']) ? trim($_GET['action']) : '';
         if ($action === 'export_csv') {
             $rows = admin_pins_export_rows($pdo);
-            $headers = admin_pins_export_header_keys();
+            $headers = admin_pins_export_header_keys($rows);
             $timestamp = date('Y-m-d_His');
             header('Content-Type: text/csv; charset=utf-8');
             header('Content-Disposition: attachment; filename="pins_' . $timestamp . '.csv"');
