@@ -69,9 +69,15 @@ try {
         $ids = isset($data['ids']) && is_array($data['ids']) ? $data['ids'] : null;
 
         if ($action === 'update_approval') {
-            $approved = isset($data['approved']) ? intval((bool)$data['approved']) : null;
+            // NOTE: approved is a 3-state flag:
+            //  1 = approved, 0 = pending, -1 = rejected.
+            // Do NOT cast via (bool) here or -1 would become true -> 1.
+            $approved = isset($data['approved']) ? intval($data['approved']) : null;
             if (!$ids || $approved === null) {
                 json_error('Missing ids or approved flag', 400);
+            }
+            if (!in_array($approved, [-1, 0, 1], true)) {
+                json_error('Invalid approved value (expected -1, 0, or 1)', 400);
             }
 
             json_response(admin_pins_update_approval($pdo, $userId, $ids, $approved));
